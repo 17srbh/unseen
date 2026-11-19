@@ -1,0 +1,261 @@
+/* ----------------------------------------------------------
+   UNSEEN design tokens: central colours, spacing and typography.
+   Keeping tokens together makes later brand-wide changes simple.
+----------------------------------------------------------- */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root {
+  font-family: 'DM Sans', sans-serif;
+  color: #eef4f2;
+  background: #09131b;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --bg: #09131b;
+  --bg-soft: #0d1a23;
+  --panel: #10212a;
+  --panel-light: #142832;
+  --mint: #8be3c1;
+  --mint-strong: #59d6a8;
+  --text: #eef4f2;
+  --muted: #9aabae;
+  --line: rgba(196, 225, 215, .13);
+  --heading: 'Manrope', sans-serif;
+  --max: 1160px;
+}
+
+/* Normalises sizing and creates smooth in-page navigation behaviour. */
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; background: var(--bg); }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; }
+::selection { background: rgba(139, 227, 193, .28); color: white; }
+
+/* Shared layout wrapper keeps all page content aligned. */
+.section-wrap { width: min(var(--max), calc(100% - 64px)); margin: 0 auto; }
+.section-space { padding-top: 112px; padding-bottom: 112px; }
+
+/* Header and navigation: sticky positioning keeps page navigation accessible. */
+.site-header { position: sticky; top: 0; z-index: 20; background: rgba(9, 19, 27, .88); backdrop-filter: blur(18px); border-bottom: 1px solid var(--line); }
+.nav-shell { width: min(var(--max), calc(100% - 64px)); height: 78px; margin: auto; display: flex; align-items: center; justify-content: space-between; }
+.brand { display: inline-flex; align-items: center; gap: 10px; font: 800 19px var(--heading); letter-spacing: .12em; }
+.brand-mark { width: 31px; height: 31px; display: grid; place-items: center; border-radius: 10px; color: #071710; background: var(--mint); font: 800 16px var(--heading); letter-spacing: 0; }
+.brand-period, .mini-brand span { color: var(--mint); }
+.nav-links { display: flex; align-items: center; gap: 34px; color: #b7c5c5; font-size: 13px; }
+.nav-links a:not(.nav-cta) { transition: color .2s ease; }
+.nav-links a:hover, .nav-links a.active { color: var(--mint); }
+.nav-cta { display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(139, 227, 193, .4); border-radius: 30px; padding: 11px 16px; color: var(--mint); }
+.menu-toggle { display: none; color: var(--text); border: 0; background: transparent; }
+
+/* Reusable eyebrow label gives sections a consistent editorial hierarchy. */
+.eyebrow { display: flex; align-items: center; gap: 10px; color: var(--mint); font-size: 10px; font-weight: 700; letter-spacing: .19em; }
+.eyebrow span { width: 22px; height: 1px; background: var(--mint); }
+
+/* Homepage hero pairs the mission statement with a lightweight product preview. */
+.hero { min-height: 650px; display: grid; grid-template-columns: 1fr .95fr; align-items: center; gap: 50px; padding-top: 76px; padding-bottom: 84px; }
+.hero h1, .inner-hero h1 { margin: 24px 0 22px; font: 800 clamp(48px, 6.2vw, 78px)/1.08 var(--heading); letter-spacing: -.065em; }
+.hero h1 span, .inner-hero h1 span, .closing-cta h2 span, .dark-panel h2 span, .reflection-panel h2 span { color: var(--mint); }
+.hero-lede, .inner-lede { max-width: 510px; color: #aab9ba; font-size: 16px; line-height: 1.85; }
+.hero-actions { display: flex; align-items: center; gap: 25px; margin-top: 34px; flex-wrap: wrap; }
+.button { display: inline-flex; align-items: center; justify-content: center; gap: 11px; border-radius: 7px; padding: 15px 19px; font-size: 13px; font-weight: 700; transition: transform .2s ease, background .2s ease; }
+.button:hover { transform: translateY(-2px); }
+.button-primary { background: var(--mint); color: #082018; }
+.button-primary:hover { background: #a4f0d2; }
+.text-link { display: inline-flex; align-items: center; gap: 3px; color: #c3d0ce; font-size: 13px; }
+.text-link:hover { color: var(--mint); }
+.hero-note { display: flex; align-items: center; gap: 9px; margin-top: 42px; color: #71868a; font-size: 11px; letter-spacing: .04em; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mint-strong); box-shadow: 0 0 13px var(--mint-strong); }
+
+/* CSS-built dashboard illustration avoids a dependency on screenshots or stock assets. */
+.hero-visual { position: relative; min-height: 470px; display: grid; place-items: center; isolation: isolate; }
+.glow { position: absolute; z-index: -2; border-radius: 50%; filter: blur(55px); }
+.glow-one { width: 290px; height: 290px; background: rgba(65, 188, 145, .13); top: 55px; right: 70px; }
+.glow-two { width: 190px; height: 190px; background: rgba(54, 116, 137, .17); bottom: 35px; left: 20px; }
+.visual-orbit { position: absolute; z-index: -1; border: 1px solid rgba(139, 227, 193, .12); border-radius: 50%; transform: rotate(-25deg); }
+.orbit-one { width: 470px; height: 280px; }
+.orbit-two { width: 530px; height: 350px; transform: rotate(25deg); }
+.preview-card { width: min(360px, 78%); border: 1px solid rgba(190, 224, 212, .2); border-radius: 17px; background: linear-gradient(145deg, #172c35, #0d1b24 80%); box-shadow: 0 35px 90px rgba(0, 0, 0, .42); }
+.main-preview { position: relative; z-index: 2; padding: 24px; transform: rotate(-3deg); }
+.preview-top, .progress-meta, .preview-stats { display: flex; justify-content: space-between; align-items: center; }
+.mini-brand { font: 800 12px var(--heading); letter-spacing: .13em; }
+.avatar { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; color: #082018; background: var(--mint); font-size: 11px; font-weight: 700; }
+.muted { color: var(--muted); }
+.small { margin: 32px 0 9px; font-size: 9px; letter-spacing: .16em; }
+.preview-card h3 { margin: 0; font: 700 30px/1.2 var(--heading); letter-spacing: -.04em; }
+.progress-meta { margin-top: 28px; color: #aab9ba; font-size: 10px; }
+.progress-meta strong { color: var(--mint); font-size: 10px; }
+.progress-track { height: 6px; margin-top: 10px; border-radius: 8px; background: #263c42; overflow: hidden; }
+.progress-track span { display: block; width: 68%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #51c99b, #a1edcb); }
+.preview-stats { margin-top: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+.preview-stats div { display: grid; gap: 3px; }
+.preview-stats strong { font: 700 25px var(--heading); }
+.preview-stats span { color: #8da0a2; font-size: 9px; }
+.preview-quote { padding-top: 16px; color: var(--mint); font-size: 11px; }
+.floating-card { position: absolute; z-index: 3; display: flex; align-items: center; gap: 10px; padding: 12px 15px; border: 1px solid rgba(190, 224, 212, .16); border-radius: 10px; background: #142831; box-shadow: 0 15px 35px rgba(0, 0, 0, .28); }
+.floating-card strong, .floating-card small { display: block; }
+.floating-card strong { font-size: 10px; }
+.floating-card small { margin-top: 4px; color: #92a6a6; font-size: 9px; }
+.streak-card { top: 76px; right: -2px; }
+.insight-card { bottom: 65px; left: -6px; }
+.icon-chip { width: 31px; height: 31px; display: grid; place-items: center; border-radius: 8px; color: #ffc477; background: rgba(255, 196, 119, .12); }
+.icon-chip.mint { color: var(--mint); background: rgba(139, 227, 193, .12); }
+
+/* Full-width belief strip creates a deliberate pause between hero and explanation. */
+.belief-strip { padding: 24px; text-align: center; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #0c1921; }
+.belief-strip p { margin: 0 0 7px; color: var(--mint); font-size: 10px; font-weight: 700; letter-spacing: .18em; }
+.belief-strip span { color: #9aabad; font-size: 12px; }
+
+/* Shared section heading and three-step cards explain the product at a glance. */
+.section-heading { max-width: 680px; }
+.section-heading.centered { margin: 0 auto 54px; text-align: center; }
+.section-heading.centered .eyebrow { justify-content: center; }
+.section-heading h2, .about-story h2, .principles-section h2 { margin: 18px 0; font: 700 clamp(34px, 4.2vw, 50px)/1.15 var(--heading); letter-spacing: -.05em; }
+.section-heading p { max-width: 590px; margin: auto; color: var(--muted); font-size: 14px; line-height: 1.8; }
+.step-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.step-card { min-height: 220px; padding: 25px; border: 1px solid var(--line); border-radius: 11px; background: linear-gradient(145deg, rgba(21, 43, 51, .7), rgba(13, 27, 35, .65)); }
+.step-card-top { display: flex; align-items: center; justify-content: space-between; }
+.line-icon { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid rgba(139, 227, 193, .2); border-radius: 10px; color: var(--mint); }
+.line-icon svg { width: 19px; height: 19px; }
+.step-number { color: #5b7277; font: 600 12px var(--heading); }
+.step-card h3 { margin: 28px 0 9px; font: 700 17px var(--heading); }
+.step-card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.8; }
+
+/* Dark feature panel gives the brand a memorable editorial statement. */
+.dark-panel { display: grid; grid-template-columns: 1.1fr .9fr; gap: 70px; align-items: center; padding: 65px; border: 1px solid rgba(139, 227, 193, .15); border-radius: 16px; background: radial-gradient(circle at 90% 20%, rgba(68, 160, 129, .14), transparent 40%), #10212a; }
+.dark-panel h2 { margin: 20px 0; font: 700 clamp(35px, 4vw, 49px)/1.18 var(--heading); letter-spacing: -.05em; }
+.dark-panel-copy p { max-width: 480px; color: var(--muted); font-size: 13px; line-height: 1.9; }
+.button-outline { margin-top: 17px; border: 1px solid rgba(139, 227, 193, .45); color: var(--mint); }
+.button-outline:hover { background: rgba(139, 227, 193, .08); }
+.quote-card { padding: 35px; border-left: 1px solid rgba(139, 227, 193, .4); }
+.quote-spark { color: var(--mint); }
+.quote-card blockquote { margin: 20px 0 25px; font: 600 23px/1.5 var(--heading); letter-spacing: -.03em; }
+.quote-card span { color: #819799; font-size: 9px; font-weight: 700; letter-spacing: .18em; }
+
+/* Closing CTA repeats the mission and directs visitors to another public page. */
+.closing-cta { padding-top: 115px; padding-bottom: 120px; text-align: center; }
+.closing-cta .eyebrow { justify-content: center; }
+.closing-cta h2 { margin: 20px 0 30px; font: 800 clamp(42px, 6vw, 68px)/1.1 var(--heading); letter-spacing: -.06em; }
+
+/* Inner-page hero is shared by About and How It Works. */
+.inner-page { overflow: hidden; }
+.inner-hero { padding-top: 100px; padding-bottom: 80px; }
+.inner-hero h1 { font-size: clamp(54px, 7vw, 82px); }
+.inner-lede { max-width: 650px; font-size: 17px; }
+.about-manifesto { display: flex; align-items: flex-start; gap: 18px; max-width: 720px; margin-top: 65px; padding: 27px 30px; border-left: 2px solid var(--mint); background: linear-gradient(90deg, rgba(139, 227, 193, .08), transparent); }
+.manifesto-mark { color: var(--mint); font: 700 45px var(--heading); line-height: 1; }
+.about-manifesto p { margin: 2px 0 0; font: 600 20px/1.55 var(--heading); }
+
+/* About story balances the problem statement with supporting context. */
+.about-story { display: grid; grid-template-columns: .8fr 1.2fr; gap: 90px; border-top: 1px solid var(--line); }
+.about-story h2 { font-size: 39px; }
+.story-copy p { margin: 0 0 18px; color: #aab9ba; font-size: 14px; line-height: 1.95; }
+.principles-section { background: #0c1921; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.principles-section .section-wrap { display: grid; grid-template-columns: .75fr 1.25fr; gap: 80px; }
+.principles-section h2 { font-size: 42px; }
+.principle-row { display: grid; grid-template-columns: 35px 48px 1fr; gap: 18px; align-items: start; padding: 23px 0; border-bottom: 1px solid var(--line); }
+.principle-row:first-child { padding-top: 0; }
+.principle-row:last-child { border-bottom: 0; }
+.principle-index { padding-top: 13px; color: #61777b; font: 600 11px var(--heading); }
+.principle-row h3 { margin: 2px 0 8px; font: 700 16px var(--heading); }
+.principle-row p { max-width: 470px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.8; }
+
+/* How-it-works timeline uses numbered cards to explain the learning loop. */
+.how-hero { padding-bottom: 45px; }
+.journey-section { position: relative; padding-top: 35px; padding-bottom: 105px; }
+.journey-line { position: absolute; top: 68px; bottom: 145px; left: 33px; width: 1px; background: linear-gradient(var(--mint), rgba(139, 227, 193, .04)); }
+.journey-card { position: relative; display: grid; grid-template-columns: 68px 1fr 90px; gap: 25px; align-items: center; margin-bottom: 20px; padding: 31px; border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(110deg, #122630, #0d1b24); }
+.journey-number { position: relative; z-index: 1; width: 43px; height: 43px; display: grid; place-items: center; border: 1px solid rgba(139, 227, 193, .35); border-radius: 50%; color: var(--mint); background: #10212a; font: 700 12px var(--heading); }
+.journey-tag { color: var(--mint); font-size: 9px; font-weight: 700; letter-spacing: .16em; }
+.journey-content h2 { margin: 10px 0; font: 700 23px var(--heading); letter-spacing: -.03em; }
+.journey-content p { max-width: 630px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.8; }
+.journey-icon { width: 62px; height: 62px; display: grid; place-items: center; border-radius: 15px; color: var(--mint); background: rgba(139, 227, 193, .08); }
+.journey-icon svg { width: 26px; height: 26px; }
+.reflection-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 65px; align-items: center; margin-bottom: 20px; padding: 55px; border: 1px solid rgba(139, 227, 193, .15); border-radius: 15px; background: radial-gradient(circle at 10% 90%, rgba(60, 146, 120, .12), transparent 42%), #10212a; }
+.reflection-panel h2 { margin: 18px 0; font: 700 39px/1.2 var(--heading); letter-spacing: -.05em; }
+.reflection-panel p { max-width: 370px; color: var(--muted); font-size: 13px; line-height: 1.8; }
+.reflection-questions { display: grid; gap: 10px; }
+.reflection-question { display: flex; align-items: center; gap: 13px; padding: 15px; border: 1px solid var(--line); border-radius: 8px; color: #dce7e3; background: rgba(7, 19, 25, .35); font-size: 12px; }
+.reflection-question span { color: var(--mint); font: 700 10px var(--heading); }
+.reflection-question svg { margin-left: auto; color: #6bbd9b; }
+
+/* Footer provides a consistent close to every public page. */
+.footer { border-top: 1px solid var(--line); background: #071119; }
+.footer-inner { width: min(var(--max), calc(100% - 64px)); min-height: 105px; margin: auto; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.footer-brand { font-size: 14px; }
+.footer-brand .brand-mark { width: 26px; height: 26px; font-size: 13px; }
+.footer-inner p, .footer-copy { color: #819497; font-size: 10px; }
+
+/* Tablet layout reduces columns while preserving the editorial spacing. */
+@media (max-width: 900px) {
+  .hero { grid-template-columns: 1fr; gap: 15px; padding-top: 75px; }
+  .hero-copy { max-width: 700px; }
+  .hero-visual { min-height: 430px; }
+  .dark-panel { padding: 42px; gap: 30px; }
+  .principles-section .section-wrap { gap: 35px; }
+  .about-story { gap: 45px; }
+}
+
+/* Mobile navigation and cards stack vertically for smaller screens. */
+@media (max-width: 640px) {
+  .section-wrap, .nav-shell, .footer-inner { width: min(100% - 38px, var(--max)); }
+  .section-space { padding-top: 78px; padding-bottom: 78px; }
+  .nav-shell { height: 68px; }
+  .menu-toggle { display: inline-flex; padding: 8px; }
+  .nav-links { position: absolute; top: 68px; left: 0; right: 0; display: none; align-items: stretch; gap: 0; padding: 12px 19px 20px; border-bottom: 1px solid var(--line); background: #0b1820; }
+  .nav-links.open { display: flex; flex-direction: column; }
+  .nav-links a { padding: 14px 8px; }
+  .nav-cta { justify-content: center; margin-top: 8px; }
+  .hero { min-height: auto; padding-top: 65px; padding-bottom: 45px; }
+  .hero h1 { font-size: clamp(47px, 13vw, 65px); }
+  .hero-lede { font-size: 14px; }
+  .hero-actions { align-items: flex-start; flex-direction: column; gap: 18px; }
+  .hero-note { margin-top: 28px; }
+  .hero-visual { min-height: 370px; margin: 10px -10px 0; }
+  .preview-card { width: min(320px, 78%); }
+  .main-preview { padding: 20px; }
+  .streak-card { top: 32px; right: 0; }
+  .insight-card { bottom: 30px; left: 0; }
+  .floating-card { padding: 9px 11px; }
+  .floating-card small { font-size: 8px; }
+  .orbit-one { width: 350px; height: 240px; }
+  .orbit-two { width: 390px; height: 280px; }
+  .belief-strip { padding: 21px 18px; }
+  .belief-strip p { font-size: 9px; }
+  .belief-strip span { font-size: 10px; }
+  .section-heading.centered { margin-bottom: 35px; }
+  .section-heading h2 { font-size: 35px; }
+  .desktop-break { display: none; }
+  .step-grid { grid-template-columns: 1fr; }
+  .step-card { min-height: 190px; }
+  .dark-panel { grid-template-columns: 1fr; gap: 25px; padding: 30px 23px; }
+  .dark-panel h2 { font-size: 37px; }
+  .quote-card { padding: 22px 0 5px; border-left: 0; border-top: 1px solid rgba(139, 227, 193, .35); }
+  .quote-card blockquote { font-size: 20px; }
+  .closing-cta { padding-top: 85px; padding-bottom: 90px; }
+  .inner-hero { padding-top: 72px; padding-bottom: 55px; }
+  .inner-hero h1 { font-size: clamp(49px, 13vw, 68px); }
+  .inner-lede { font-size: 14px; }
+  .about-manifesto { margin-top: 42px; padding: 22px 18px; }
+  .about-manifesto p { font-size: 17px; }
+  .about-story { grid-template-columns: 1fr; gap: 5px; }
+  .about-story h2 { font-size: 34px; }
+  .principles-section .section-wrap { grid-template-columns: 1fr; gap: 25px; }
+  .principles-section h2 { font-size: 36px; }
+  .principle-row { grid-template-columns: 25px 42px 1fr; gap: 12px; }
+  .journey-section { padding-top: 15px; padding-bottom: 75px; }
+  .journey-line { left: 20px; top: 48px; bottom: 115px; }
+  .journey-card { grid-template-columns: 42px 1fr; gap: 15px; padding: 22px 16px; }
+  .journey-number { width: 38px; height: 38px; }
+  .journey-content h2 { font-size: 19px; }
+  .journey-content p { font-size: 12px; }
+  .journey-icon { display: none; }
+  .reflection-panel { grid-template-columns: 1fr; gap: 25px; padding: 28px 20px; }
+  .reflection-panel h2 { font-size: 34px; }
+  .footer-inner { min-height: 135px; padding: 22px 0; align-items: flex-start; flex-direction: column; justify-content: center; gap: 8px; }
+  .footer-inner p { margin: 0; }
+}
+
+/* Respects visitors who prefer reduced motion for accessibility. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}

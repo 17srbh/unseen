@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Least-privilege IAM role assumed by the UNSEEN GitHub Actions workflow using OIDC.
+  The GitHub OIDC identity provider must already exist in this AWS account.
+
+Parameters:
+  GitHubOwner:
+    Type: String
+    Description: GitHub username or organization that owns the repository.
+  GitHubRepository:
+    Type: String
+    Description: Repository name only, without the owner prefix.
+  DeploymentBranch:
+    Type: String
+    Default: main
+    Description: Only this branch can assume the deployment role.
+  WebsiteBucketName:
+    Type: String
+    Description: WebsiteBucketName output from the frontend-hosting stack.
+  CloudFrontDistributionId:
+    Type: String
+    Description: CloudFrontDistributionId output from the frontend-hosting stack.
+
+Resources:
+  # This role trusts only the selected GitHub repository and branch.
+  GitHubActionsDeploymentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Deploys the UNSEEN Module 1 static website from one GitHub branch.
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com'
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub 'repo:${GitHubOwner}/${GitHubRepository}:ref:refs/heads/${DeploymentBranch}'
+      Policies:
+        - PolicyName: PublishWebsiteAndInvalidateCloudFront
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # Allows listing only the website bucket so aws s3 sync can compare files.
+              - Sid: ListWebsiteBucket
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${WebsiteBucketName}'
+              # Allows the workflow to upload, replace and remove website objects only.
+              - Sid: ManageWebsiteObjects
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                  - s3:AbortMultipartUpload
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${WebsiteBucketName}/*'
+              # Allows cache invalidation only for this site's CloudFront distribution.
+              - Sid: InvalidateWebsiteDistribution
+                Effect: Allow
+                Action:
+                  - cloudfront:CreateInvalidation
+                Resource: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistributionId}'
+
+Outputs:
+  GitHubActionsRoleArn:
+    Description: Add this ARN as the AWS_DEPLOY_ROLE_ARN repository variable in GitHub.
+    Value: !GetAtt GitHubActionsDeploymentRole.Arn

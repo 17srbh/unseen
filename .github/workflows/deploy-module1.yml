@@ -1,0 +1,81 @@
+# Publishes only the Module 1 static frontend when its source changes on main.
+name: Deploy UNSEEN Module 1
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package.json'
+      - 'vite.config.js'
+      - '.github/workflows/deploy-module1.yml'
+  workflow_dispatch:
+
+# GitHub needs contents:read for checkout and id-token:write to request an OIDC token.
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: unseen-module1-production
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    name: Build and publish static website
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      S3_BUCKET_NAME: ${{ vars.S3_BUCKET_NAME }}
+      CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+
+    steps:
+      # Checks out the exact commit that triggered this deployment.
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Installs Node.js for the Vite production build.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Installs the dependencies declared in package.json.
+      - name: Install dependencies
+        run: npm install
+
+      # Produces the static production site in the dist/ directory.
+      - name: Build website
+        run: npm run build
+
+      # Exchanges the GitHub OIDC token for short-lived AWS credentials.
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # Uploads the built assets and removes obsolete files from the S3 destination.
+      - name: Sync website assets to S3
+        run: |
+          aws s3 sync dist/ "s3://${S3_BUCKET_NAME}/" \
+            --delete \
+            --cache-control "public,max-age=86400" \
+            --exclude "index.html"
+
+      # Gives the HTML entry point a short cache lifetime so new releases appear quickly.
+      - name: Upload index.html with short cache lifetime
+        run: |
+          aws s3 cp dist/index.html "s3://${S3_BUCKET_NAME}/index.html" \
+            --content-type "text/html; charset=utf-8" \
+            --cache-control "public,max-age=60,must-revalidate"
+
+      # Removes cached copies so visitors receive the newly deployed frontend.
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${CLOUDFRONT_DISTRIBUTION_ID}" \
+            --paths "/*"
