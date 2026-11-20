@@ -1,0 +1,127 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  UNSEEN Module 2 authentication. Creates an Amazon Cognito User Pool,
+  a public browser app client using OAuth authorization code grant, and a
+  Lite-tier Classic Hosted UI domain.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: unseen
+    Description: Name prefix used for Cognito resources.
+
+  DomainPrefix:
+    Type: String
+    MinLength: 1
+    MaxLength: 63
+    AllowedPattern: '^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$'
+    ConstraintDescription: Use 1-63 lowercase letters, numbers or hyphens; start and end with a letter or number.
+    Description: Globally unique Cognito prefix domain, for example unseen-470044069008-login.
+
+  CallbackUrls:
+    Type: CommaDelimitedList
+    Default: http://localhost:5173/auth/callback
+    Description: OAuth callback URLs. Add the final Cloudflare Pages callback URL after the Pages project is created.
+
+  LogoutUrls:
+    Type: CommaDelimitedList
+    Default: http://localhost:5173/
+    Description: Allowed post-logout URLs. Add the final Cloudflare Pages URL after the Pages project is created.
+
+Resources:
+  # Stores UNSEEN user identities. Email is the sign-in name and is automatically verified.
+  UnseenUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub '${ProjectName}-users'
+      UserPoolTier: LITE
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      UsernameConfiguration:
+        CaseSensitive: false
+      MfaConfiguration: OFF
+      DeletionProtection: INACTIVE
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          TemporaryPasswordValidityDays: 7
+      UserPoolTags:
+        Application: UNSEEN
+        Module: Module2
+        Environment: Development
+
+  # Public SPA client: deliberately has no client secret because browser code cannot keep secrets.
+  UnseenWebAppClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub '${ProjectName}-web'
+      UserPoolId: !Ref UnseenUserPool
+      GenerateSecret: false
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - openid
+        - email
+        - profile
+      SupportedIdentityProviders:
+        - COGNITO
+      CallbackURLs: !Ref CallbackUrls
+      LogoutURLs: !Ref LogoutUrls
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
+
+  # Uses Cognito's Classic Hosted UI (branding version 1), available on the Lite tier.
+  # The frontend initiates OAuth code + PKCE; Cognito hosts credential entry and signup.
+  UnseenUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Ref DomainPrefix
+      UserPoolId: !Ref UnseenUserPool
+      ManagedLoginVersion: 1
+
+Outputs:
+  UserPoolId:
+    Description: Cognito User Pool ID used by the React application.
+    Value: !Ref UnseenUserPool
+
+  UserPoolClientId:
+    Description: Public Cognito app client ID used by the React application.
+    Value: !Ref UnseenWebAppClient
+
+  CognitoDomain:
+    Description: Cognito hosted domain, without https://, for Amplify Auth configuration.
+    Value: !Sub '${DomainPrefix}.auth.${AWS::Region}.amazoncognito.com'
+
+  CognitoLoginUrl:
+    Description: Browser login endpoint for the Cognito Classic Hosted UI.
+    Value: !Sub 'https://${DomainPrefix}.auth.${AWS::Region}.amazoncognito.com/login'
+
+  AwsRegion:
+    Description: Region containing the User Pool.
+    Value: !Ref AWS::Region
+
+  CallbackUrls:
+    Description: Registered OAuth callback URLs.
+    Value: !Join [',', !Ref CallbackUrls]
+
+  LogoutUrls:
+    Description: Registered post-logout URLs.
+    Value: !Join [',', !Ref LogoutUrls]

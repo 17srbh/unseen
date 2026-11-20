@@ -10,6 +10,7 @@ on:
       - 'public/**'
       - 'index.html'
       - 'package.json'
+      - 'package-lock.json'
       - 'vite.config.js'
       - '.github/workflows/deploy-module1.yml'
   workflow_dispatch:
@@ -26,6 +27,9 @@ concurrency:
 jobs:
   build-and-deploy:
     name: Build and publish static website
+    # Keep this AWS publisher dormant until the account is approved for CloudFront.
+    # Cloudflare Pages handles the current frontend deployment independently.
+    if: ${{ vars.AWS_DEPLOY_ROLE_ARN != '' && vars.AWS_REGION != '' && vars.S3_BUCKET_NAME != '' && vars.CLOUDFRONT_DISTRIBUTION_ID != '' }}
     runs-on: ubuntu-latest
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}

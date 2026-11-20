@@ -1,17 +1,32 @@
 import { useState } from "react";
-import { Link, NavLink, Route, Routes } from "react-router-dom";
+import { Link, NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import {
   ArrowRight, ArrowUpRight, BookOpen, Brain, Check, ChevronRight,
-  Compass, Flame, Layers3, Menu, ShieldCheck, Sparkles, Target, TrendingUp,
-  X
+  Flame, Layers3, Menu, ShieldCheck, Sparkles, Target, TrendingUp, X
 } from "lucide-react";
+import { AuthProvider, useAuth } from "./auth/AuthContext.jsx";
+import AuthPage from "./pages/AuthPage.jsx";
+import AuthCallbackPage from "./pages/AuthCallbackPage.jsx";
+import DashboardPage from "./pages/DashboardPage.jsx";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
-// Shared navigation keeps the three initial pages visually and functionally consistent.
+// Shared navigation exposes account actions while preserving the public website links.
 function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
 
-  // Closes the mobile menu after a visitor chooses a page.
+  // Closes the mobile menu after a visitor chooses a page or account action.
   const closeMenu = () => setMenuOpen(false);
+
+  const handleSignOut = async () => {
+    closeMenu();
+    try {
+      await signOut();
+    } catch {
+      // A failed hosted sign-out should not expose tokens or block the visitor silently.
+      window.location.assign("/login");
+    }
+  };
 
   return (
     <header className="site-header">
@@ -34,9 +49,19 @@ function Header() {
           <NavLink to="/" end onClick={closeMenu}>Home</NavLink>
           <NavLink to="/about" onClick={closeMenu}>About</NavLink>
           <NavLink to="/how-it-works" onClick={closeMenu}>How it works</NavLink>
-          <a className="nav-cta" href="mailto:hello@unseen.example" onClick={closeMenu}>
-            Get in touch <ArrowUpRight size={15} />
-          </a>
+          {user ? (
+            <>
+              <NavLink className="nav-login" to="/app/dashboard" onClick={closeMenu}>Dashboard</NavLink>
+              <button className="nav-signout" type="button" onClick={handleSignOut}>Sign out</button>
+            </>
+          ) : (
+            <>
+              <NavLink className="nav-login" to="/login" onClick={closeMenu}>Log in</NavLink>
+              <Link className="nav-cta" to="/signup" onClick={closeMenu}>
+                Get started <ArrowUpRight size={15} />
+              </Link>
+            </>
+          )}
         </nav>
       </div>
     </header>
@@ -59,7 +84,7 @@ function Footer() {
   );
 }
 
-// Small label component used to make section context easy to scan.
+// Small label component used to make sections visually consistent.
 function Eyebrow({ children }) {
   return <div className="eyebrow"><span />{children}</div>;
 }
@@ -83,15 +108,15 @@ function Home() {
             They count — and your journey deserves to show it.
           </p>
           <div className="hero-actions">
-            <Link className="button button-primary" to="/how-it-works">
-              Discover how it works <ArrowRight size={17} />
+            <Link className="button button-primary" to="/signup">
+              Start your journey <ArrowRight size={17} />
             </Link>
-            <Link className="text-link" to="/about">Why UNSEEN exists <ChevronRight size={16} /></Link>
+            <Link className="text-link" to="/how-it-works">Discover how it works <ChevronRight size={16} /></Link>
           </div>
           <div className="hero-note"><span className="status-dot" /> A different way to look at progress</div>
         </div>
 
-        {/* Decorative dashboard preview gives visitors a product impression before login exists. */}
+        {/* Decorative dashboard preview gives visitors a product impression before their first login. */}
         <div className="hero-visual" aria-label="Illustrative UNSEEN progress dashboard">
           <div className="glow glow-one" />
           <div className="glow glow-two" />
@@ -151,7 +176,7 @@ function Home() {
       <section className="closing-cta section-wrap">
         <Eyebrow>KEEP SHOWING UP</Eyebrow>
         <h2>Your effort deserves<br /><span>to be seen.</span></h2>
-        <Link className="button button-primary" to="/about">Get to know UNSEEN <ArrowRight size={17} /></Link>
+        <Link className="button button-primary" to="/signup">Start your journey <ArrowRight size={17} /></Link>
       </section>
     </main>
   );
@@ -202,7 +227,7 @@ function About() {
 
       <section className="closing-cta section-wrap">
         <Eyebrow>ONE STEP AT A TIME</Eyebrow><h2>Your journey<br /><span>still counts.</span></h2>
-        <Link className="button button-primary" to="/how-it-works">See how it works <ArrowRight size={17} /></Link>
+        <Link className="button button-primary" to="/signup">Start your journey <ArrowRight size={17} /></Link>
       </section>
     </main>
   );
@@ -249,24 +274,47 @@ function HowItWorks() {
 
       <section className="closing-cta section-wrap">
         <Eyebrow>YOUR PACE. YOUR PATH.</Eyebrow><h2>Every small step<br /><span>adds up.</span></h2>
-        <Link className="button button-primary" to="/">Back to home <ArrowRight size={17} /></Link>
+        <Link className="button button-primary" to="/signup">Start your journey <ArrowRight size={17} /></Link>
       </section>
     </main>
   );
 }
 
-// App routes connect the three requested pages; unbuilt pages are intentionally not included.
-export default function App() {
+// Keeps login, signup, OAuth callback and learner routes free from the public-site header/footer.
+function RoutedApp() {
+  const location = useLocation();
+  const isStandaloneRoute =
+    location.pathname === "/login" ||
+    location.pathname === "/signup" ||
+    location.pathname === "/auth/callback" ||
+    location.pathname.startsWith("/app");
+
   return (
     <>
-      <Header />
+      {!isStandaloneRoute && <Header />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
         <Route path="/how-it-works" element={<HowItWorks />} />
-        <Route path="*" element={<Home />} />
+        <Route path="/login" element={<AuthPage mode="login" />} />
+        <Route path="/signup" element={<AuthPage mode="signup" />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        <Route
+          path="/app/dashboard"
+          element={<ProtectedRoute><DashboardPage /></ProtectedRoute>}
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <Footer />
+      {!isStandaloneRoute && <Footer />}
     </>
+  );
+}
+
+// Places authentication state above all routes so navigation and protected pages share one session.
+export default function App() {
+  return (
+    <AuthProvider>
+      <RoutedApp />
+    </AuthProvider>
   );
 }
