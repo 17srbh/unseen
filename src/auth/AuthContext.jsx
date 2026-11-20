@@ -97,7 +97,11 @@ export function AuthProvider({ children }) {
       setAuthError("Authentication is not configured yet. Add the Cognito values to your local or Cloudflare environment.");
       return;
     }
-    await signInWithRedirect();
+    try {
+      await signInWithRedirect();
+    } catch {
+      setAuthError("Cognito sign-in could not be started. Check the app configuration and allowed callback URL, then try again.");
+    }
   }, []);
 
   // Cognito Classic Hosted UI exposes its Sign up link on the hosted login page.
@@ -108,7 +112,11 @@ export function AuthProvider({ children }) {
       setAuthError("Authentication is not configured yet. Deploy the Cognito stack and add its outputs to your environment.");
       return;
     }
-    await signInWithRedirect();
+    try {
+      await signInWithRedirect();
+    } catch {
+      setAuthError("Cognito sign-up could not be started. Check the app configuration and allowed callback URL, then try again.");
+    }
   }, []);
 
   // Signs the user out through Amplify and Cognito's configured sign-out endpoint.
