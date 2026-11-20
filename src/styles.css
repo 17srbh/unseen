@@ -44,7 +44,7 @@ button { font: inherit; }
 .nav-links { display: flex; align-items: center; gap: 34px; color: #b7c5c5; font-size: 13px; }
 .nav-links a:not(.nav-cta) { transition: color .2s ease; }
 .nav-links a:hover, .nav-links a.active { color: var(--mint); }
-.nav-cta { display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(139, 227, 193, .4); border-radius: 30px; padding: 11px 16px; color: var(--mint); }
+.nav-cta { display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(139, 227, 193, .4); border-radius: 30px; padding: 11px 16px; color: var(--mint); }\n/* Navigation account actions stay visually consistent with the public-site links. */\n.nav-login { color: #b7c5c5; }\n.nav-signout { border: 0; padding: 8px 0; background: transparent; color: #b7c5c5; cursor: pointer; font: inherit; font-size: 13px; }\n.nav-signout:hover { color: var(--mint); }
 .menu-toggle { display: none; color: var(--text); border: 0; background: transparent; }
 
 /* Reusable eyebrow label gives sections a consistent editorial hierarchy. */
@@ -203,7 +203,7 @@ button { font: inherit; }
   .menu-toggle { display: inline-flex; padding: 8px; }
   .nav-links { position: absolute; top: 68px; left: 0; right: 0; display: none; align-items: stretch; gap: 0; padding: 12px 19px 20px; border-bottom: 1px solid var(--line); background: #0b1820; }
   .nav-links.open { display: flex; flex-direction: column; }
-  .nav-links a { padding: 14px 8px; }
+  .nav-links a, .nav-links .nav-signout { display: flex; width: 100%; padding: 14px 8px; text-align: left; }
   .nav-cta { justify-content: center; margin-top: 8px; }
   .hero { min-height: auto; padding-top: 65px; padding-bottom: 45px; }
   .hero h1 { font-size: clamp(47px, 13vw, 65px); }
