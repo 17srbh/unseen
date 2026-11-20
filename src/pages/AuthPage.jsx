@@ -3,7 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
 
 // Provides UNSEEN-branded entry screens while Cognito securely handles credentials.
-// Cognito Classic Hosted UI displays the actual sign-in, sign-up and password-recovery forms.
+// Cognito Classic Hosted UI displays sign-in and password recovery, with a Sign up link for new users.
 export default function AuthPage({ mode = "login" }) {
   const { user, loading, authConfigured, authError, clearAuthError, startSignIn, startSignUp } = useAuth();
   const isSignup = mode === "signup";
@@ -63,7 +63,7 @@ export default function AuthPage({ mode = "login" }) {
           <h2 id="auth-title">{isSignup ? "Create your account" : "Sign in to UNSEEN"}</h2>
           <p className="auth-card-description">
             {isSignup
-              ? "We'll take you to AWS's secure sign-up page to create and verify your account."
+              ? "You'll open Cognito's secure sign-in page. Choose the Sign up link there to create your account and verify your email."
               : "Continue securely with your UNSEEN account."}
           </p>
 
@@ -82,7 +82,7 @@ export default function AuthPage({ mode = "login" }) {
             onClick={continueToCognito}
             disabled={!authConfigured || loading}
           >
-            {isSignup ? "Continue to secure sign up" : "Continue to secure sign in"}
+            {isSignup ? "Continue to account creation" : "Continue to secure sign in"}
             <ArrowRight size={17} />
           </button>
 
