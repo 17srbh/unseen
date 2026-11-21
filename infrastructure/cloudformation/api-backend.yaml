@@ -34,7 +34,7 @@ Parameters:
 
   AllowedOrigins:
     Type: CommaDelimitedList
-    Default: https://feature-module2-cognito-auth.unseen-bu8.pages.dev,https://unseen-bu8.pages.dev
+    Default: https://feature-module2-cognito-auth.unseen-bu8.pages.dev,https://unseen-bu8.pages.dev,http://localhost:5173
     Description: Exact frontend origins allowed by API Gateway CORS.
 
 Resources:
