@@ -111,8 +111,10 @@ unseen/
 ├── infrastructure/cloudformation/
 │   ├── frontend-hosting.yaml   # Planned AWS S3 + CloudFront hosting
 │   ├── cognito-auth.yaml       # Cognito User Pool and public SPA client
-│   └── learning-data.yaml      # Learning data DynamoDB table
+│   ├── learning-data.yaml      # Learning data DynamoDB table
+│   └── api-backend.yaml        # HTTP API, JWT authorizer and profile Lambda
 ├── src/
+│   ├── api/                     # Authenticated API client
 │   ├── auth/                    # Amplify config and auth context
 │   ├── components/              # Protected route guard
 │   ├── pages/                   # Public pages, auth and dashboard
@@ -130,7 +132,7 @@ unseen/
 
 - Never commit `.env.local`, AWS credentials, xAI API keys, app-client secrets or private keys.
 - The browser Cognito app client is public and has no client secret.
-- Future APIs must validate Cognito access-token signature, issuer, expiry and token use using an API Gateway JWT authorizer.
+- The deployed API Gateway HTTP API validates Cognito access-token signature, issuer, expiry, client ID and required scopes using its JWT authorizer.
 - Backend code must derive the user ID from validated token claims, not from a client-supplied user ID.
 - Grok API calls must run in Lambda. Never expose the xAI API key in a Vite `VITE_*` variable or browser bundle.
 - Grok may assess rubric dimensions and provide evidence, but backend code calculates scores, points and ranks.
@@ -145,4 +147,4 @@ Cloudflare Pages is the current hosting path for the public frontend.
 
 ## Continuation brief
 
-> Continue the UNSEEN project from the existing GitHub repository. Module 1 public pages are Home, About and How It Works. Module 2 Cognito authentication is working on branch `feature/module2-cognito-auth`: React login/signup entry pages, Cognito Hosted UI OAuth Authorization Code + PKCE via AWS Amplify, callback handling and protected dashboard. The first backend foundation now adds a DynamoDB CloudFormation template, a single-table data model document, and pure scoring/rank utilities with Node tests. The DynamoDB table has not yet been deployed or connected to an API. Next build Lambda handlers, the xAI/Grok Responses API adapter with its key stored server-side, an API Gateway HTTP API with Cognito JWT authorization, and then the learner conversation UI. Preserve the dark navy/mint design, keep UI minimal, include meaningful comments, update docs and test the Vite build. Inspect the current repository before changing files.
+> Continue the UNSEEN project from the existing GitHub repository. Module 1 public pages are Home, About and How It Works. Module 2 Cognito authentication works on branch `feature/module2-cognito-auth`: React login/signup entry pages, Cognito Hosted UI OAuth Authorization Code + PKCE via AWS Amplify, callback handling and protected dashboard. The development DynamoDB table and API stack are deployed. The API exposes public `GET /health` and Cognito JWT-protected `GET /v1/me`; the latter initializes or retrieves the signed-in learner's profile. The React dashboard now calls that endpoint using Amplify's Cognito access token and reads points/rank from the backend. Current task: set `VITE_UNSEEN_API_URL` in local `.env.local` and Cloudflare Pages environments, pull latest branch, run tests/build, then verify the authenticated profile end to end. Next add learning-session and conversation-turn endpoints, server-side xAI/Grok Responses API using a Secrets Manager key, atomic assessment/points transactions and the learner conversation UI. Preserve the dark navy/mint design, keep UI minimal, include meaningful comments, update docs and test the Vite build. Inspect current files before changing them.
