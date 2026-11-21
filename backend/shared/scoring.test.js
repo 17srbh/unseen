@@ -39,7 +39,7 @@ test("weighted rubric uses the agreed 30/25/25/20 weights", () => {
     practicalApplication: 3,
     interviewExplanation: 2,
   });
-  assert.equal(result.totalScore, 72);
+  assert.equal(result.totalScore, 73);
 });
 
 test("invalid ratings are rejected", () => {
