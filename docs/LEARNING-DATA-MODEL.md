@@ -14,7 +14,7 @@ The first release stores:
 - A per-UTC-day points counter used to enforce the daily cap.
 - Skill progress records for future learning analytics.
 
-The table is not connected to Lambda or API Gateway yet. Those are the next implementation milestone.
+The table is deployed in the development account. The first API/Lambda template now exists at `infrastructure/cloudformation/api-backend.yaml`; it has not yet been deployed. Its initial protected operation is `GET /v1/me`, which initializes or retrieves the authenticated learner's profile.
 
 ## Infrastructure
 
@@ -160,10 +160,24 @@ npm test
 
 The tests cover rubric validation, weighted scoring, point caps and rank boundaries.
 
+## API foundation
+
+CloudFormation template: `infrastructure/cloudformation/api-backend.yaml`
+
+The first API stack creates:
+
+- An HTTP API with a public `GET /health` route.
+- A Cognito JWT authorizer using the deployed User Pool issuer and public app client ID.
+- A protected `GET /v1/me` route that reads the authenticated `sub` from API Gateway's validated JWT claims.
+- A Lambda execution role scoped to `GetItem` and `PutItem` on the configured learning table, plus CloudWatch logging.
+- First-use profile creation with a conditional write to handle concurrent first requests.
+
+The initial Lambda uses the runtime-provided AWS SDK because it is defined inline in CloudFormation. AWS recommends packaging SDK dependencies for normal deployment packages; the inline template is intentionally a small first slice.
+
 ## Next backend milestone
 
-1. Add Lambda handlers for starting a session and appending a conversation turn.
-2. Add a server-side Grok adapter using the xAI Responses API and a secret stored outside the frontend.
-3. Persist Grok questions and learner answers as separate turn items.
-4. Complete an assessment and record the score, points ledger and profile update atomically.
-5. Expose the operations through an API Gateway HTTP API with a Cognito JWT authorizer.
+1. Validate and deploy the API stack, then test the public health route and authenticated profile route.
+2. Add protected endpoints to start a learning session and append a conversation turn.
+3. Add a server-side Grok adapter using the xAI Responses API and a secret stored outside the frontend.
+4. Persist Grok questions and learner answers as separate turn items.
+5. Complete an assessment and record the score, points ledger and profile update atomically.
