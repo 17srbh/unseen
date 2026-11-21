@@ -41,7 +41,7 @@ Resources:
         - email
       UsernameConfiguration:
         CaseSensitive: false
-      MfaConfiguration: OFF
+      MfaConfiguration: "OFF"
       DeletionProtection: INACTIVE
       AccountRecoverySetting:
         RecoveryMechanisms:
