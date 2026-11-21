@@ -14,7 +14,7 @@ The first release stores:
 - A per-UTC-day points counter used to enforce the daily cap.
 - Skill progress records for future learning analytics.
 
-The table is deployed in the development account. The first API/Lambda template now exists at `infrastructure/cloudformation/api-backend.yaml`; it has not yet been deployed. Its initial protected operation is `GET /v1/me`, which initializes or retrieves the authenticated learner's profile.
+The table and first API stack are deployed in the development account. The protected `GET /v1/me` operation initializes or retrieves the authenticated learner's profile. The frontend dashboard now calls this endpoint using the Cognito access token; live end-to-end verification is the current test milestone.
 
 ## Infrastructure
 
@@ -176,7 +176,7 @@ The initial Lambda uses the runtime-provided AWS SDK because it is defined inlin
 
 ## Next backend milestone
 
-1. Validate and deploy the API stack, then test the public health route and authenticated profile route.
+1. Complete the authenticated `GET /v1/me` browser-to-DynamoDB test, including a repeat request to prove the profile persists.
 2. Add protected endpoints to start a learning session and append a conversation turn.
 3. Add a server-side Grok adapter using the xAI Responses API and a secret stored outside the frontend.
 4. Persist Grok questions and learner answers as separate turn items.
