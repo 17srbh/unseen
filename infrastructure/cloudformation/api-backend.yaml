@@ -1,0 +1,292 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  UNSEEN development API foundation. A Cognito-protected HTTP API invokes a
+  Lambda function that initializes or reads the authenticated learner profile.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: unseen
+    AllowedPattern: '^[a-z][a-z0-9-]{1,20}$'
+    Description: Lowercase application prefix.
+
+  EnvironmentName:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Isolated deployment environment.
+
+  LearningTableName:
+    Type: String
+    Default: unseen-dev-learning
+    Description: Existing DynamoDB learning table name.
+
+  CognitoUserPoolId:
+    Type: String
+    Description: Cognito user pool ID used as the JWT issuer.
+
+  CognitoAppClientId:
+    Type: String
+    Description: Public Cognito app client ID used as the JWT audience.
+
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Default: https://feature-module2-cognito-auth.unseen-bu8.pages.dev,https://unseen-bu8.pages.dev
+    Description: Exact frontend origins allowed by API Gateway CORS.
+
+Resources:
+  ApiExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${EnvironmentName}-api-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ReadAndInitializeOwnLearnerProfile
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: LearnerProfileAccess
+                Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                Resource: !Sub 'arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${LearningTableName}'
+      Tags:
+        - Key: Application
+          Value: UNSEEN
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  ApiFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-${EnvironmentName}-api'
+      Description: Initializes and retrieves the authenticated UNSEEN learner profile.
+      Runtime: nodejs24.x
+      Handler: index.handler
+      Role: !GetAtt ApiExecutionRole.Arn
+      MemorySize: 256
+      Timeout: 10
+      Environment:
+        Variables:
+          LEARNING_TABLE_NAME: !Ref LearningTableName
+          ENVIRONMENT_NAME: !Ref EnvironmentName
+      Code:
+        ZipFile: |
+          const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+          const {
+            DynamoDBDocumentClient,
+            GetCommand,
+            PutCommand
+          } = require("@aws-sdk/lib-dynamodb");
+
+          const documentClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+          const tableName = process.env.LEARNING_TABLE_NAME;
+
+          function response(statusCode, body) {
+            return {
+              statusCode,
+              headers: {
+                "content-type": "application/json; charset=utf-8",
+                "cache-control": "no-store"
+              },
+              body: JSON.stringify(body)
+            };
+          }
+
+          async function getOrCreateProfile(userSub) {
+            const key = {
+              PK: `USER#${userSub}`,
+              SK: "PROFILE"
+            };
+
+            const existing = await documentClient.send(new GetCommand({
+              TableName: tableName,
+              Key: key,
+              ConsistentRead: true
+            }));
+
+            if (existing.Item) return existing.Item;
+
+            const now = new Date().toISOString();
+            const profile = {
+              ...key,
+              entityType: "PROFILE",
+              totalPoints: 0,
+              currentRank: "Learner",
+              createdAt: now,
+              updatedAt: now
+            };
+
+            try {
+              await documentClient.send(new PutCommand({
+                TableName: tableName,
+                Item: profile,
+                ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)"
+              }));
+              return profile;
+            } catch (error) {
+              // Another concurrent first request may have created the profile.
+              if (error.name !== "ConditionalCheckFailedException") throw error;
+              const concurrent = await documentClient.send(new GetCommand({
+                TableName: tableName,
+                Key: key,
+                ConsistentRead: true
+              }));
+              if (concurrent.Item) return concurrent.Item;
+              throw error;
+            }
+          }
+
+          exports.handler = async (event) => {
+            if (event.routeKey === "GET /health") {
+              return response(200, { status: "ok", service: "unseen-api" });
+            }
+
+            if (event.routeKey !== "GET /v1/me") {
+              return response(404, { error: "Not found" });
+            }
+
+            // API Gateway's JWT authorizer validates the token before the
+            // request reaches Lambda. Identity is taken only from its claims.
+            const userSub = event.requestContext
+              && event.requestContext.authorizer
+              && event.requestContext.authorizer.jwt
+              && event.requestContext.authorizer.jwt.claims
+              && event.requestContext.authorizer.jwt.claims.sub;
+
+            if (!userSub) {
+              return response(401, { error: "Unauthorized" });
+            }
+
+            try {
+              const profile = await getOrCreateProfile(userSub);
+              return response(200, {
+                user: { sub: userSub },
+                profile
+              });
+            } catch (error) {
+              console.error("Unable to load learner profile", {
+                errorName: error && error.name ? error.name : "UnknownError"
+              });
+              return response(500, { error: "Unable to load learner profile" });
+            }
+          };
+      Tags:
+        - Key: Application
+          Value: UNSEEN
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  LearningApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub '${ProjectName}-${EnvironmentName}-api'
+      Description: UNSEEN learner API.
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins: !Ref AllowedOrigins
+        AllowMethods:
+          - GET
+          - OPTIONS
+        AllowHeaders:
+          - authorization
+          - content-type
+        MaxAge: 3600
+      Tags:
+        Application: UNSEEN
+        Environment: !Ref EnvironmentName
+
+  CognitoJwtAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId: !Ref LearningApi
+      Name: !Sub '${ProjectName}-${EnvironmentName}-cognito-jwt'
+      AuthorizerType: JWT
+      IdentitySource:
+        - '$request.header.Authorization'
+      JwtConfiguration:
+        Audience:
+          - !Ref CognitoAppClientId
+        Issuer: !Sub 'https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPoolId}'
+
+  ApiIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref LearningApi
+      IntegrationType: AWS_PROXY
+      IntegrationMethod: POST
+      IntegrationUri: !GetAtt ApiFunction.Arn
+      PayloadFormatVersion: '2.0'
+      TimeoutInMillis: 10000
+
+  HealthRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref LearningApi
+      RouteKey: 'GET /health'
+      AuthorizationType: NONE
+      Target: !Sub 'integrations/${ApiIntegration}'
+
+  GetMyProfileRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref LearningApi
+      RouteKey: 'GET /v1/me'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref CognitoJwtAuthorizer
+      AuthorizationScopes:
+        - openid
+      Target: !Sub 'integrations/${ApiIntegration}'
+
+  DefaultStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref LearningApi
+      StageName: '$default'
+      AutoDeploy: true
+      Tags:
+        Application: UNSEEN
+        Environment: !Ref EnvironmentName
+
+  ApiInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ApiFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${LearningApi}/*/*/*'
+
+Outputs:
+  ApiBaseUrl:
+    Description: Base URL for the UNSEEN HTTP API.
+    Value: !Sub 'https://${LearningApi}.execute-api.${AWS::Region}.amazonaws.com'
+
+  HealthUrl:
+    Description: Public health-check endpoint.
+    Value: !Sub 'https://${LearningApi}.execute-api.${AWS::Region}.amazonaws.com/health'
+
+  MyProfileUrl:
+    Description: Cognito-protected learner profile endpoint.
+    Value: !Sub 'https://${LearningApi}.execute-api.${AWS::Region}.amazonaws.com/v1/me'
+
+  ApiFunctionName:
+    Description: Lambda function backing the API routes.
+    Value: !Ref ApiFunction
+
+  ApiFunctionRoleArn:
+    Description: Lambda execution role with access to the learner table only.
+    Value: !GetAtt ApiExecutionRole.Arn
