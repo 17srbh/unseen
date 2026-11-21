@@ -86,14 +86,13 @@ Resources:
           ENVIRONMENT_NAME: !Ref EnvironmentName
       Code:
         ZipFile: |
-          const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
           const {
-            DynamoDBDocumentClient,
-            GetCommand,
-            PutCommand
-          } = require("@aws-sdk/lib-dynamodb");
+            DynamoDBClient,
+            GetItemCommand,
+            PutItemCommand
+          } = require("@aws-sdk/client-dynamodb");
 
-          const documentClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+          const dynamodb = new DynamoDBClient({});
           const tableName = process.env.LEARNING_TABLE_NAME;
 
           function response(statusCode, body) {
@@ -113,13 +112,27 @@ Resources:
               SK: "PROFILE"
             };
 
-            const existing = await documentClient.send(new GetCommand({
+            const existing = await dynamodb.send(new GetItemCommand({
               TableName: tableName,
-              Key: key,
+              Key: {
+                PK: { S: key.PK },
+                SK: { S: key.SK }
+              },
               ConsistentRead: true
             }));
 
-            if (existing.Item) return existing.Item;
+            if (existing.Item) {
+              const item = existing.Item;
+              return {
+                PK: item.PK.S,
+                SK: item.SK.S,
+                entityType: item.entityType && item.entityType.S,
+                totalPoints: Number(item.totalPoints && item.totalPoints.N || "0"),
+                currentRank: item.currentRank && item.currentRank.S,
+                createdAt: item.createdAt && item.createdAt.S,
+                updatedAt: item.updatedAt && item.updatedAt.S
+              };
+            }
 
             const now = new Date().toISOString();
             const profile = {
@@ -131,22 +144,46 @@ Resources:
               updatedAt: now
             };
 
+            const item = {
+              PK: { S: profile.PK },
+              SK: { S: profile.SK },
+              entityType: { S: profile.entityType },
+              totalPoints: { N: String(profile.totalPoints) },
+              currentRank: { S: profile.currentRank },
+              createdAt: { S: profile.createdAt },
+              updatedAt: { S: profile.updatedAt }
+            };
+
             try {
-              await documentClient.send(new PutCommand({
+              await dynamodb.send(new PutItemCommand({
                 TableName: tableName,
-                Item: profile,
+                Item: item,
                 ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)"
               }));
               return profile;
             } catch (error) {
               // Another concurrent first request may have created the profile.
               if (error.name !== "ConditionalCheckFailedException") throw error;
-              const concurrent = await documentClient.send(new GetCommand({
+              const concurrent = await dynamodb.send(new GetItemCommand({
                 TableName: tableName,
-                Key: key,
+                Key: {
+                  PK: { S: key.PK },
+                  SK: { S: key.SK }
+                },
                 ConsistentRead: true
               }));
-              if (concurrent.Item) return concurrent.Item;
+              if (concurrent.Item) {
+                const item = concurrent.Item;
+                return {
+                  PK: item.PK.S,
+                  SK: item.SK.S,
+                  entityType: item.entityType && item.entityType.S,
+                  totalPoints: Number(item.totalPoints && item.totalPoints.N || "0"),
+                  currentRank: item.currentRank && item.currentRank.S,
+                  createdAt: item.createdAt && item.createdAt.S,
+                  updatedAt: item.updatedAt && item.updatedAt.S
+                };
+              }
               throw error;
             }
           }
