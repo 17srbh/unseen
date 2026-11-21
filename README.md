@@ -17,7 +17,7 @@ UNSEEN is a learning-intelligence and career-growth platform designed to make co
 - `/auth/callback` — OAuth authorization-code callback.
 - `/app/dashboard` — Protected authenticated landing page; the learning UI is the next frontend milestone.
 
-The first backend foundation now defines the learner data model, DynamoDB table template and deterministic assessment scoring/rank utilities. The table is not yet connected to API Gateway, Lambda or Grok.
+The first backend slice is deployed in AWS: a DynamoDB learner table, an HTTP API, a Cognito JWT authorizer and a Lambda-backed `GET /v1/me` profile endpoint. The React dashboard calls the endpoint with the signed-in user's Cognito access token. Learning sessions, conversation persistence and Grok are the next backend milestones.
 
 ### Module 3 — Career intelligence and talent marketplace
 
@@ -30,7 +30,9 @@ Planned future capabilities include professional career journeys, career benchma
 - Lucide React
 - AWS Amplify Auth (Cognito integration)
 - Amazon Cognito User Pool (OAuth 2.0 authorization code grant + PKCE)
-- Amazon DynamoDB (learning data model; CloudFormation deployment template)
+- Amazon DynamoDB (deployed learner data table)
+- Amazon API Gateway HTTP API (Cognito JWT-protected routes)
+- AWS Lambda (learner profile handler)
 - Cloudflare Pages for current static frontend hosting
 - AWS CloudFormation for infrastructure
 - GitHub for source control
@@ -50,6 +52,12 @@ The application can still run without Cognito values so the public pages remain 
 ## Cognito setup
 
 See [docs/COGNITO-AUTH.md](docs/COGNITO-AUTH.md) for Cognito User Pool deployment, OAuth callback and logout URL configuration, local environment setup, Cloudflare Pages variables, token refresh and security boundaries.
+
+## API connection
+
+The deployed development API base URL is `https://q3darm7zjg.execute-api.ap-south-1.amazonaws.com`. Set it as `VITE_UNSEEN_API_URL` in the local `.env.local` file and in Cloudflare Pages Preview/Production environment variables as appropriate. It is a public endpoint URL, not a secret. Vite embeds this value at build time, so rebuild/redeploy the frontend after changing it.
+
+The dashboard uses Amplify `fetchAuthSession()` to obtain the Cognito access token and sends it as a Bearer token to `GET /v1/me`. Never print or commit that token.
 
 ## Learning data and scoring foundation
 
