@@ -162,7 +162,7 @@ export default function SessionPage() {
             </div>
           </form>
           {error && <div className="session-error" role="alert">{error}</div>}
-          <p className="session-private-note">Your session is private to your UNSEEN account. You can return to it using its session link.</p>
+          <p className="session-private-note">Your learning conversation is sent securely to xAI to generate mentor responses and saved to your UNSEEN account. Do not include passwords, API keys or confidential information.</p>
         </section>
       </main>
     );
