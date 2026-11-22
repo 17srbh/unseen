@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
 import "./styles.css";
 import "./auth.css";
+import "./session.css";
 
 // Creates the React application, loads authentication styling and enables client-side routing.
 ReactDOM.createRoot(document.getElementById("root")).render(
