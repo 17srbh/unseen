@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
   UNSEEN learning data store. Creates a protected DynamoDB table for learner
-  profiles, learning sessions, conversation turns, assessments and points ledger.
+  profiles, active learning sessions and completed session assessments.
 
 Parameters:
   ProjectName:
