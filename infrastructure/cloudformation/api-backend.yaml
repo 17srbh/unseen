@@ -35,7 +35,8 @@ Parameters:
   XaiApiKeySecretName:
     Type: String
     Default: unseen/dev/xai-api-key
-    Description: Secrets Manager secret name containing the xAI API key, as plain text or JSON with an apiKey field.
+    AllowedPattern: '^unseen/[a-z0-9-]+/xai-api-key$'
+    Description: Secrets Manager secret name following the unseen environment naming convention.
 
   XaiModel:
     Type: String
@@ -79,7 +80,7 @@ Resources:
                 Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
-                Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:unseen/${EnvironmentName}/xai-api-key-*'
+                Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${XaiApiKeySecretName}-*'
       Tags:
         - Key: Application
           Value: UNSEEN
@@ -520,6 +521,10 @@ Resources:
               return response(200, { sessionId, status: "COMPLETED", scorecard: existing });
             }
           
+            if ((session.userTurnCount || 0) < 2) {
+              fail(409, "Answer at least one mentor follow-up before completing this learning session.");
+            }
+
             const scorecard = validateScorecard(await callGrok(
               modelMessages(session, session.recentMessages, true),
               "unseen_session_scorecard",
