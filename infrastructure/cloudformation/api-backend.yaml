@@ -115,6 +115,7 @@ Resources:
           const secretId = process.env.XAI_API_KEY_SECRET_ID;
           const modelName = process.env.XAI_MODEL || "grok-4.7";
           const MAX_RECENT_MESSAGES = 12;
+          const MAX_MODEL_TURNS = 8;
           const MAX_USER_TURNS = 16;
           const MAX_ENTRY_LENGTH = 3000;
           const MAX_MESSAGE_LENGTH = 2500;
@@ -313,6 +314,7 @@ Resources:
                   reasoning: { effort: "medium" },
                   prompt_cache_key: sessionId,
                   store: false,
+                  include: ["reasoning.encrypted_content"],
                   text: {
                     format: {
                       type: "json_schema",
@@ -342,25 +344,34 @@ Resources:
             });
             if (!outputText || typeof outputText.text !== "string") fail(502, "The AI mentor returned an empty response.");
             try {
-              return JSON.parse(outputText.text);
-            } catch {
+              return {
+                value: JSON.parse(outputText.text),
+                // With store:false, pass Grok's encrypted reasoning items back on the next turn.
+                outputItems: result.output || []
+              };
+            } catch (error) {
+              if (error && error.statusCode) throw error;
               fail(502, "The AI mentor returned an unreadable response.");
             }
           }
-          
-          function modelMessages(session, messages, finishSession) {
+
+          function modelMessages(session, turns, finishSession) {
             const facts = {
               initialEntry: session.initialEntry,
               topic: session.topic || "",
               contextSummary: session.contextSummary || "",
+              knowledgeGaps: session.knowledgeGaps || [],
               userTurnCount: session.userTurnCount || 0,
               mentorTurnCount: session.mentorTurnCount || 0
             };
+            const history = (turns || []).flatMap(function (turn) {
+              return [turn.userInput].concat(turn.outputItems || []);
+            });
             const result = [
               // Keep this first message stable across turns so xAI can reuse its cached prefix.
               { role: "system", content: MENTOR_PROMPT },
-              { role: "developer", content: "SESSION FACTS:\n" + JSON.stringify(facts) }
-            ].concat(messages || []);
+              { role: "developer", content: "SESSION FACTS:\\n" + JSON.stringify(facts) }
+            ].concat(history);
             if (finishSession) {
               result.push({
                 role: "user",
@@ -369,7 +380,7 @@ Resources:
             }
             return result;
           }
-          
+
           async function readRecord(userSub, sortKey) {
             const result = await dynamodb.send(new GetItemCommand({
               TableName: tableName,
@@ -428,6 +439,7 @@ Resources:
               topic: "",
               contextSummary: "",
               knowledgeGaps: [],
+              modelTurns: [],
               recentMessages: [{ role: "user", content: initialEntry }],
               userTurnCount: 1,
               mentorTurnCount: 0,
@@ -435,15 +447,22 @@ Resources:
               createdAt: now,
               updatedAt: now
             };
-          
-            const turn = validateTurn(await callGrok(
-              modelMessages(session, session.recentMessages, false),
+
+            const modelTurns = [{
+              userInput: { role: "user", content: initialEntry },
+              outputItems: []
+            }];
+            const grokResult = await callGrok(
+              modelMessages(session, modelTurns, false),
               "unseen_mentor_turn",
               TURN_SCHEMA,
               900,
               sessionId
-            ));
-          
+            );
+            const turn = validateTurn(grokResult.value);
+            modelTurns[0].outputItems = grokResult.outputItems;
+
+            session.modelTurns = modelTurns;
             session.topic = turn.topic;
             session.contextSummary = turn.contextSummary;
             session.knowledgeGaps = turn.knowledgeGaps;
@@ -452,7 +471,7 @@ Resources:
             session.version = 2;
             session.updatedAt = new Date().toISOString();
             await saveSession(session, null);
-          
+
             return response(201, {
               sessionId,
               status: "ACTIVE",
@@ -462,7 +481,7 @@ Resources:
               createdAt: session.createdAt
             });
           }
-          
+
           async function getSession(userSub, sessionId) {
             const session = await readRecord(userSub, "SESSION#" + sessionId);
             if (!session) fail(404, "Learning session not found.");
@@ -478,26 +497,36 @@ Resources:
             if (!session) fail(404, "Learning session not found.");
             if (session.status !== "ACTIVE") fail(409, "This learning session is already completed.");
             if (session.userTurnCount >= MAX_USER_TURNS) fail(409, "This session has reached its message limit. Complete it to receive your scorecard.");
-          
-            const inputMessages = (session.recentMessages || []).concat([{ role: "user", content: message }]);
-            const turn = validateTurn(await callGrok(
-              modelMessages(session, inputMessages, false),
+
+            const modelTurns = (session.modelTurns || []).concat([{
+              userInput: { role: "user", content: message },
+              outputItems: []
+            }]);
+            const grokResult = await callGrok(
+              modelMessages(session, modelTurns, false),
               "unseen_mentor_turn",
               TURN_SCHEMA,
-              900
-            ));
-          
+              900,
+              sessionId
+            );
+            const turn = validateTurn(grokResult.value);
+            modelTurns[modelTurns.length - 1].outputItems = grokResult.outputItems;
+
             const updated = Object.assign({}, session, {
               topic: turn.topic || session.topic,
               contextSummary: turn.contextSummary,
               knowledgeGaps: turn.knowledgeGaps,
-              recentMessages: inputMessages.concat([{ role: "assistant", content: turn.message }]).slice(-MAX_RECENT_MESSAGES),
+              modelTurns: modelTurns.slice(-MAX_MODEL_TURNS),
+              recentMessages: (session.recentMessages || []).concat([
+                { role: "user", content: message },
+                { role: "assistant", content: turn.message }
+              ]).slice(-MAX_RECENT_MESSAGES),
               userTurnCount: session.userTurnCount + 1,
               mentorTurnCount: session.mentorTurnCount + 1,
               version: session.version + 1,
               updatedAt: new Date().toISOString()
             });
-          
+
             try {
               await saveSession(updated, session.version);
             } catch (error) {
@@ -506,7 +535,7 @@ Resources:
               }
               throw error;
             }
-          
+
             return response(200, {
               sessionId,
               status: "ACTIVE",
@@ -516,7 +545,7 @@ Resources:
               updatedAt: updated.updatedAt
             });
           }
-          
+
           async function completeSession(userSub, sessionId) {
             const session = await readRecord(userSub, "SESSION#" + sessionId);
             if (!session) fail(404, "Learning session not found.");
@@ -531,13 +560,14 @@ Resources:
               fail(409, "Answer at least one mentor follow-up before completing this learning session.");
             }
 
-            const scorecard = validateScorecard(await callGrok(
-              modelMessages(session, session.recentMessages, true),
+            const grokResult = await callGrok(
+              modelMessages(session, session.modelTurns || [], true),
               "unseen_session_scorecard",
               SCORECARD_SCHEMA,
               1300,
               sessionId
-            ));
+            );
+            const scorecard = validateScorecard(grokResult.value);
             const completedAt = new Date().toISOString();
             const assessment = Object.assign({}, scorecard, {
               PK: session.PK,
