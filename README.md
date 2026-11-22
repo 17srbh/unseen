@@ -107,7 +107,7 @@ The protected learner flow uses these API routes:
 
 Every route is protected by the Cognito JWT authorizer. Lambda derives the learner identity from the verified `sub` claim; a browser-supplied user ID is never trusted.
 
-The session item stores the initial entry, status, topic, a rolling context summary, knowledge gaps, counters and at most 12 recent messages. There is no separate DynamoDB item for each mentor question or answer. Completion stores one `ASSESSMENT#<sessionId>` item and marks the session complete in a DynamoDB transaction. Repeating the completion request returns the existing scorecard.
+The session item stores the initial entry, status, topic, rolling context summary, knowledge gaps, counters and at most 12 recent display messages. It also holds Grok 4.7's opaque Responses API output items (including encrypted reasoning) for at most the last 8 turns and passes them back unchanged on the next call. Provider-side response storage is disabled. There is no separate DynamoDB item for each mentor question or answer. Completion stores one `ASSESSMENT#<sessionId>` item and marks the session complete in a DynamoDB transaction. Repeating the completion request returns the existing scorecard.
 
 ### Configure the xAI API key
 
