@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test backend/shared/scoring.test.js"
+    "test": "node --test backend/shared/*.test.js"
   },
   "dependencies": {
     "aws-amplify": "^6.22.2",

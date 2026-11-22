@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { BookOpen, LogOut, RefreshCw, Sparkles, TrendingUp } from "lucide-react";
+import { BookOpen, LogOut, RefreshCw, Sparkles, TrendingUp, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { fetchMyProfile } from "../api/learnerApi.js";
@@ -89,12 +89,14 @@ export default function DashboardPage() {
         <div className="learner-empty-icon"><BookOpen size={25} /></div>
         <span className="auth-card-kicker">YOUR FIRST STEP</span>
         <h2>Your learning story starts here.</h2>
-        <p>Your account and learner profile are connected. The next milestone is your daily learning journal, where you can capture what you studied, practised and figured out.</p>
+        <p>Tell your AI mentor what you studied, built or struggled with. It will ask focused follow-up questions, help you strengthen your understanding and create a scorecard when you finish.</p>
         <div className="learner-next-items">
-          <span><Sparkles size={15} /> Record what you learned</span>
-          <span><TrendingUp size={15} /> See progress take shape</span>
+          <span><Sparkles size={15} /> Explore what you learned</span>
+          <span><TrendingUp size={15} /> Build real understanding</span>
         </div>
-        <span className="learner-coming-soon">Learning Journal is the next build milestone.</span>
+        <Link className="button button-primary learner-start-session" to="/app/learn">
+          Start a learning session <ArrowRight size={16} />
+        </Link>
       </section>
     </main>
   );

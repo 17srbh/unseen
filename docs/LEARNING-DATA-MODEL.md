@@ -4,7 +4,7 @@
 
 UNSEEN provides an AI-led learning mentor and interview-readiness session.
 
-Grok manages the conversation dynamically:
+Groq manages the conversation dynamically:
 - Asking questions.
 - Giving suggestions and explanations.
 - Identifying knowledge gaps.
@@ -42,8 +42,8 @@ Never trust a user ID supplied by the browser.
 | Record | Sort key | Purpose |
 |---|---|---|
 | Profile | PROFILE | Basic learner profile metadata |
-| Learning session | SESSION#<timestamp>#<sessionId> | Initial learning entry, status and current context |
-| Assessment | ASSESSMENT#<timestamp>#<sessionId> | Final session scorecard |
+| Learning session | SESSION#<sessionId> | Initial entry, active status and bounded conversation context |
+| Assessment | ASSESSMENT#<sessionId> | One final scorecard for the completed session |
 
 ## Active learning session
 
@@ -60,7 +60,7 @@ A session record can contain:
 We do not need a separate DynamoDB item for every question, suggestion
 or explanation.
 
-Lambda retrieves the saved session context and supplies it to Grok
+Lambda retrieves the saved session context and supplies it to Groq
 on each request. The context should use a rolling summary and bounded
 recent history rather than grow indefinitely.
 
@@ -77,10 +77,27 @@ A completed session produces one assessment record containing:
 - Interview readiness feedback.
 - Completion timestamp.
 
-Grok generates the overall score and feedback.
+The configured model generates the overall score and feedback.
 
 The backend validates the score and response structure before saving.
 The backend owns user identity and persistence.
+
+## Implemented session flow
+
+The development API provides the following Cognito-protected routes:
+
+- `POST /v1/sessions` — creates a session and asks Groq for the first mentor response.
+- `GET /v1/sessions/{sessionId}` — restores a session belonging to the authenticated Cognito subject.
+- `POST /v1/sessions/{sessionId}/message` — appends one learner response, sends the rolling context to Groq and persists the next mentor response.
+- `POST /v1/sessions/{sessionId}/complete` — generates a scorecard and atomically saves the assessment while marking the session completed.
+
+A session stores no more than the most recent 12 display messages, plus a rolling summary, topic, current knowledge gaps and turn counters. It also stores the Responses API output items needed for conversational continuity for at most the most recent 8 turns. Those items are passed back to Groq on the next request; they are not shown to the browser. Groq's Responses API is stateless, so the application supplies this bounded history on every request. A session is limited to 16 learner turns. The API requires at least one learner response to the mentor before completion.
+
+The completed assessment is saved at `ASSESSMENT#<sessionId>` using a DynamoDB transaction together with the session status update. A repeated completion request returns the existing scorecard instead of creating a second assessment.
+
+The `openai/gpt-oss-20b` model is called only from Lambda through the Groq Responses API with a JSON Schema response format, low reasoning effort for interactive mentor turns and medium reasoning effort for final assessment. The Responses API is currently in beta and does not support `previous_response_id`, `store`, `truncation`, `include` or `prompt_cache_key`; Groq also requires the application to provide bounded conversation history on every request. Learner conversation content is sent to Groq for model inference; user email, Cognito subject and access tokens are not included in the model prompt. The UI tells learners not to submit passwords, API keys or confidential information. The API key is read from AWS Secrets Manager and is never exposed to the browser. The application validates the model's response shape and the 0–100 score before persistence.
+
+The first UI starts a session at `/app/learn` and restores it at `/app/learn/<sessionId>`. A separate session history/list endpoint is not implemented in this slice.
 
 ## Future development
 
