@@ -299,7 +299,7 @@ Resources:
             return cachedApiKey;
           }
           
-          async function callGrok(messages, schemaName, schema, maxTokens, sessionId) {
+          async function callGrok(messages, schemaName, schema, maxTokens, sessionId, reasoningEffort = "low") {
             const apiKey = await getApiKey();
             let result;
             try {
@@ -311,7 +311,7 @@ Resources:
                   model: modelName,
                   input: messages,
                   max_output_tokens: maxTokens,
-                  reasoning: { effort: "medium" },
+                  reasoning: { effort: reasoningEffort },
                   prompt_cache_key: sessionId,
                   store: false,
                   include: ["reasoning.encrypted_content"],
@@ -566,7 +566,8 @@ Resources:
               "unseen_session_scorecard",
               SCORECARD_SCHEMA,
               1300,
-              sessionId
+              sessionId,
+              "medium"
             );
             const scorecard = validateScorecard(grokResult.value);
             const completedAt = new Date().toISOString();
