@@ -91,11 +91,11 @@ The development API provides the following Cognito-protected routes:
 - `POST /v1/sessions/{sessionId}/message` — appends one learner response, sends the rolling context to Grok and persists the next mentor response.
 - `POST /v1/sessions/{sessionId}/complete` — generates a scorecard and atomically saves the assessment while marking the session completed.
 
-A session stores no more than the most recent 12 message objects, a compact summary, topic, current knowledge gaps and turn counters. A session is limited to 16 learner turns. The API requires at least one learner response to the mentor before completion.
+A session stores no more than the most recent 12 display messages, plus a rolling summary, topic, current knowledge gaps and turn counters. For Grok 4.7 continuity, it also stores the opaque Responses API output items (including encrypted reasoning) for at most the most recent 8 turns. Those items are passed back unchanged on the next request; they are not shown to the browser. A session is limited to 16 learner turns. The API requires at least one learner response to the mentor before completion.
 
 The completed assessment is saved at `ASSESSMENT#<sessionId>` using a DynamoDB transaction together with the session status update. A repeated completion request returns the existing scorecard instead of creating a second assessment.
 
-Grok 4.7 is called only from Lambda through the xAI Responses API with a JSON Schema response format. The API key is read from AWS Secrets Manager and is never exposed to the browser. The application validates the model's response shape and the 0–100 score before persistence.
+Grok 4.7 is called only from Lambda through the xAI Responses API with a JSON Schema response format, explicit medium reasoning effort and a per-session prompt-cache key. Provider-side response storage is disabled; encrypted reasoning output is held in the bounded DynamoDB session context so the next request can continue coherently. The API key is read from AWS Secrets Manager and is never exposed to the browser. The application validates the model's response shape and the 0–100 score before persistence.
 
 The first UI starts a session at `/app/learn` and restores it at `/app/learn/<sessionId>`. A separate session history/list endpoint is not implemented in this slice.
 
