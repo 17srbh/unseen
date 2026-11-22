@@ -58,9 +58,9 @@ test("session context is bounded and scorecard persistence is transactional", ()
   assert.match(lambdaSource, /MAX_RECENT_MESSAGES = 12/);
   assert.match(lambdaSource, /MAX_MODEL_TURNS = 8/);
   assert.match(lambdaSource, /MAX_USER_TURNS = 16/);
-  assert.match(lambdaSource, /include: \\["reasoning\\.encrypted_content"\\]/);
-  assert.match(lambdaSource, /outputItems: result\\.output \\|\\| \\[\\]/);
-  assert.match(lambdaSource, /return \\[turn\\.userInput\\]\\.concat\\(turn\\.outputItems \\|\\| \\[\\]\\)/);
+  assert.ok(lambdaSource.includes('include: ["reasoning.encrypted_content"]'));
+  assert.ok(lambdaSource.includes("outputItems: result.output || []"));
+  assert.ok(lambdaSource.includes("return [turn.userInput].concat(turn.outputItems || [])"));
   assert.match(lambdaSource, /TransactWriteItemsCommand/);
   assert.match(lambdaSource, /ASSESSMENT#/);
   assert.match(lambdaSource, /ConditionExpression: "#version = :version AND #status = :active"/);
