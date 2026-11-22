@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { fetchMyProfile } from "../api/learnerApi.js";
 
-// Loads the signed-in learner's server-owned profile; points and rank come from DynamoDB.
+// Loads the signed-in learner's server-owned profile through the authenticated API.
 export default function DashboardPage() {
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState(null);
