@@ -107,7 +107,11 @@ The protected learner flow uses these API routes:
 
 Every route is protected by the Cognito JWT authorizer. Lambda derives the learner identity from the verified `sub` claim; a browser-supplied user ID is never trusted.
 
-The session item stores the initial entry, status, topic, rolling context summary, knowledge gaps, counters and at most 12 recent display messages. It also holds Grok 4.7's opaque Responses API output items (including encrypted reasoning) for at most the last 8 turns and passes them back unchanged on the next call. Provider-side response storage is disabled. There is no separate DynamoDB item for each mentor question or answer. Completion stores one `ASSESSMENT#<sessionId>` item and marks the session complete in a DynamoDB transaction. Repeating the completion request returns the existing scorecard.
+Learner conversation content is sent over HTTPS to xAI for model inference. The model prompt does not include the learner's email, Cognito subject or access token. The interface warns learners not to submit passwords, API keys or confidential information. The xAI API key remains in AWS Secrets Manager and is used only by Lambda.
+
+The Responses API request sets `store: false`, so full response records are not saved for later `previous_response_id` retrieval. However, [xAI documents that Grok 4.7's encrypted reasoning trace may still be retained server-side for rehydration](https://docs.x.ai/developers/model-capabilities/text/reasoning). Do not use this flow for confidential or regulated information without reviewing xAI's current data-handling terms.
+
+The session item stores the initial entry, status, topic, rolling context summary, knowledge gaps, counters and at most 12 recent display messages. It also holds Grok 4.7's opaque Responses API output items (including encrypted reasoning) for at most the last 8 turns and passes them back unchanged on the next call. Full response records are not stored for later `previous_response_id` retrieval; encrypted reasoning traces may still be retained by xAI for rehydration. There is no separate DynamoDB item for each mentor question or answer. Completion stores one `ASSESSMENT#<sessionId>` item and marks the session complete in a DynamoDB transaction. Repeating the completion request returns the existing scorecard.
 
 ### Configure the xAI API key
 
