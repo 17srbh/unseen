@@ -57,7 +57,7 @@ export default function DashboardPage() {
         <div className="learner-profile-heading">
           <div>
             <span className="auth-card-kicker">YOUR UNSEEN PROFILE</span>
-            <h2 id="profile-heading">Your progress, saved.</h2>
+            <h2 id="profile-heading">Your learning profile.</h2>
           </div>
           <span className="learner-profile-icon"><TrendingUp size={21} /></span>
         </div>
@@ -76,17 +76,11 @@ export default function DashboardPage() {
           </div>
         ) : profile ? (
           <>
-            <div className="learner-profile-stats">
-              <div>
-                <span>Lifetime points</span>
-                <strong>{profile.totalPoints ?? 0}</strong>
-              </div>
-              <div>
-                <span>Current rank</span>
-                <strong>{profile.currentRank || "Learner"}</strong>
-              </div>
-            </div>
-            <p className="learner-profile-note">This profile is loaded from your UNSEEN account, not from the browser.</p>
+            <p className="learner-profile-note">
+              Your authenticated learner profile is connected.
+              Completed learning sessions and their assessment summaries
+              will appear here.
+            </p>
           </>
         ) : null}
       </section>

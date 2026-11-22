@@ -127,8 +127,6 @@ Resources:
                 PK: item.PK.S,
                 SK: item.SK.S,
                 entityType: item.entityType && item.entityType.S,
-                totalPoints: Number(item.totalPoints && item.totalPoints.N || "0"),
-                currentRank: item.currentRank && item.currentRank.S,
                 createdAt: item.createdAt && item.createdAt.S,
                 updatedAt: item.updatedAt && item.updatedAt.S
               };
@@ -138,8 +136,6 @@ Resources:
             const profile = {
               ...key,
               entityType: "PROFILE",
-              totalPoints: 0,
-              currentRank: "Learner",
               createdAt: now,
               updatedAt: now
             };
@@ -148,8 +144,6 @@ Resources:
               PK: { S: profile.PK },
               SK: { S: profile.SK },
               entityType: { S: profile.entityType },
-              totalPoints: { N: String(profile.totalPoints) },
-              currentRank: { S: profile.currentRank },
               createdAt: { S: profile.createdAt },
               updatedAt: { S: profile.updatedAt }
             };
@@ -178,9 +172,7 @@ Resources:
                   PK: item.PK.S,
                   SK: item.SK.S,
                   entityType: item.entityType && item.entityType.S,
-                  totalPoints: Number(item.totalPoints && item.totalPoints.N || "0"),
-                  currentRank: item.currentRank && item.currentRank.S,
-                  createdAt: item.createdAt && item.createdAt.S,
+                      createdAt: item.createdAt && item.createdAt.S,
                   updatedAt: item.updatedAt && item.updatedAt.S
                 };
               }
