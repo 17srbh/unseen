@@ -298,7 +298,7 @@ Resources:
             return cachedApiKey;
           }
           
-          async function callGrok(messages, schemaName, schema, maxTokens) {
+          async function callGrok(messages, schemaName, schema, maxTokens, sessionId) {
             const apiKey = await getApiKey();
             let result;
             try {
@@ -310,6 +310,9 @@ Resources:
                   model: modelName,
                   input: messages,
                   max_output_tokens: maxTokens,
+                  reasoning: { effort: "medium" },
+                  prompt_cache_key: sessionId,
+                  store: false,
                   text: {
                     format: {
                       type: "json_schema",
@@ -354,7 +357,9 @@ Resources:
               mentorTurnCount: session.mentorTurnCount || 0
             };
             const result = [
-              { role: "system", content: MENTOR_PROMPT + "\n\nSESSION FACTS:\n" + JSON.stringify(facts) }
+              // Keep this first message stable across turns so xAI can reuse its cached prefix.
+              { role: "system", content: MENTOR_PROMPT },
+              { role: "developer", content: "SESSION FACTS:\n" + JSON.stringify(facts) }
             ].concat(messages || []);
             if (finishSession) {
               result.push({
@@ -435,7 +440,8 @@ Resources:
               modelMessages(session, session.recentMessages, false),
               "unseen_mentor_turn",
               TURN_SCHEMA,
-              900
+              900,
+              sessionId
             ));
           
             session.topic = turn.topic;
@@ -529,7 +535,8 @@ Resources:
               modelMessages(session, session.recentMessages, true),
               "unseen_session_scorecard",
               SCORECARD_SCHEMA,
-              1300
+              1300,
+              sessionId
             ));
             const completedAt = new Date().toISOString();
             const assessment = Object.assign({}, scorecard, {
