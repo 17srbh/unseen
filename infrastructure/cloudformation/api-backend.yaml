@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
-  UNSEEN API. Cognito-protected routes manage learning sessions, call Grok from
+  UNSEEN API. Cognito-protected routes manage learning sessions, call Groq from
   Lambda and store bounded session context plus completed scorecards in DynamoDB.
 
 Parameters:
@@ -32,16 +32,16 @@ Parameters:
     Type: String
     Description: Public Cognito app client ID used as the JWT audience.
 
-  XaiApiKeySecretName:
+  GroqApiKeySecretName:
     Type: String
-    Default: unseen/dev/xai-api-key
-    AllowedPattern: '^unseen/[a-z0-9-]+/xai-api-key$'
+    Default: unseen/dev/groq-api-key
+    AllowedPattern: '^unseen/[a-z0-9-]+/groq-api-key$'
     Description: Secrets Manager secret name following the unseen environment naming convention.
 
-  XaiModel:
+  GroqModel:
     Type: String
-    Default: grok-4.7
-    Description: xAI model identifier used by the learning mentor.
+    Default: openai/gpt-oss-20b
+    Description: Groq model identifier used by the learning mentor.
 
   AllowedOrigins:
     Type: CommaDelimitedList
@@ -76,11 +76,11 @@ Resources:
                   - dynamodb:PutItem
                   - dynamodb:TransactWriteItems
                 Resource: !Sub 'arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${LearningTableName}'
-              - Sid: ReadXaiApiKey
+              - Sid: ReadGroqApiKey
                 Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
-                Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${XaiApiKeySecretName}-*'
+                Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${GroqApiKeySecretName}-*'
       Tags:
         - Key: Application
           Value: UNSEEN
@@ -101,8 +101,8 @@ Resources:
         Variables:
           LEARNING_TABLE_NAME: !Ref LearningTableName
           ENVIRONMENT_NAME: !Ref EnvironmentName
-          XAI_API_KEY_SECRET_ID: !Ref XaiApiKeySecretName
-          XAI_MODEL: !Ref XaiModel
+          GROQ_API_KEY_SECRET_ID: !Ref GroqApiKeySecretName
+          GROQ_MODEL: !Ref GroqModel
       Code:
         ZipFile: |
           const crypto = require("node:crypto");
@@ -112,8 +112,8 @@ Resources:
           const dynamodb = new DynamoDBClient({});
           const secrets = new SecretsManagerClient({});
           const tableName = process.env.LEARNING_TABLE_NAME;
-          const secretId = process.env.XAI_API_KEY_SECRET_ID;
-          const modelName = process.env.XAI_MODEL || "grok-4.7";
+          const secretId = process.env.GROQ_API_KEY_SECRET_ID;
+          const modelName = process.env.GROQ_MODEL || "openai/gpt-oss-20b";
           const MAX_RECENT_MESSAGES = 12;
           const MAX_MODEL_TURNS = 8;
           const MAX_USER_TURNS = 16;
@@ -283,7 +283,7 @@ Resources:
           async function getApiKey() {
             if (cachedApiKey && Date.now() < cachedApiKeyUntil) return cachedApiKey;
             const secret = await secrets.send(new GetSecretValueCommand({ SecretId: secretId }));
-            if (!secret.SecretString) throw new Error("The xAI API key secret is empty.");
+            if (!secret.SecretString) throw new Error("The Groq API key secret is empty.");
             let key = secret.SecretString.trim();
             if (key.startsWith("{")) {
               try {
@@ -293,17 +293,17 @@ Resources:
                 key = "";
               }
             }
-            if (!key) throw new Error("The xAI API key secret must be plain text or JSON with an apiKey property.");
+            if (!key) throw new Error("The Groq API key secret must be plain text or JSON with an apiKey property.");
             cachedApiKey = key;
             cachedApiKeyUntil = Date.now() + 300000;
             return cachedApiKey;
           }
           
-          async function callGrok(messages, schemaName, schema, maxTokens, sessionId, reasoningEffort = "low") {
+          async function callGroq(messages, schemaName, schema, maxTokens, reasoningEffort = "low") {
             const apiKey = await getApiKey();
             let result;
             try {
-              const upstream = await fetch("https://api.x.ai/v1/responses", {
+              const upstream = await fetch("https://api.groq.com/openai/v1/responses", {
                 method: "POST",
                 headers: { authorization: "Bearer " + apiKey, "content-type": "application/json" },
                 signal: AbortSignal.timeout(22000),
@@ -312,9 +312,6 @@ Resources:
                   input: messages,
                   max_output_tokens: maxTokens,
                   reasoning: { effort: reasoningEffort },
-                  prompt_cache_key: sessionId,
-                  store: false,
-                  include: ["reasoning.encrypted_content"],
                   text: {
                     format: {
                       type: "json_schema",
@@ -326,13 +323,13 @@ Resources:
                 })
               });
               if (!upstream.ok) {
-                console.error("xAI request failed", { status: upstream.status });
+                console.error("Groq request failed", { status: upstream.status });
                 fail(502, "The AI mentor is temporarily unavailable. Please try again.");
               }
               result = await upstream.json();
             } catch (error) {
               if (error.statusCode) throw error;
-              console.error("xAI request could not be completed", { errorName: error.name || "UnknownError" });
+              console.error("Groq request could not be completed", { errorName: error.name || "UnknownError" });
               fail(502, "The AI mentor is temporarily unavailable. Please try again.");
             }
             if (result.status === "incomplete") fail(502, "The AI mentor response was incomplete. Please try again.");
@@ -346,7 +343,7 @@ Resources:
             try {
               return {
                 value: JSON.parse(outputText.text),
-                // With store:false, pass Grok's encrypted reasoning items back on the next turn.
+                // Groq is stateless; pass the bounded Responses API output history on the next turn.
                 outputItems: result.output || []
               };
             } catch (error) {
@@ -368,7 +365,7 @@ Resources:
               return [turn.userInput].concat(turn.outputItems || []);
             });
             const result = [
-              // Keep the fixed mentor prompt and prior turns as a stable prefix for xAI prompt caching.
+              // Groq is stateless, so provide the bounded saved conversation history on every request.
               { role: "system", content: MENTOR_PROMPT }
             ].concat(history, [
               { role: "developer", content: "SESSION FACTS:\\n" + JSON.stringify(facts) }
@@ -453,15 +450,14 @@ Resources:
               userInput: { role: "user", content: initialEntry },
               outputItems: []
             }];
-            const grokResult = await callGrok(
+            const groqResult = await callGroq(
               modelMessages(session, modelTurns, false),
               "unseen_mentor_turn",
               TURN_SCHEMA,
-              900,
-              sessionId
+              900
             );
-            const turn = validateTurn(grokResult.value);
-            modelTurns[0].outputItems = grokResult.outputItems;
+            const turn = validateTurn(groqResult.value);
+            modelTurns[0].outputItems = groqResult.outputItems;
 
             session.modelTurns = modelTurns;
             session.topic = turn.topic;
@@ -503,15 +499,15 @@ Resources:
               userInput: { role: "user", content: message },
               outputItems: []
             }]);
-            const grokResult = await callGrok(
+            const groqResult = await callGroq(
               modelMessages(session, modelTurns, false),
               "unseen_mentor_turn",
               TURN_SCHEMA,
               900,
               sessionId
             );
-            const turn = validateTurn(grokResult.value);
-            modelTurns[modelTurns.length - 1].outputItems = grokResult.outputItems;
+            const turn = validateTurn(groqResult.value);
+            modelTurns[modelTurns.length - 1].outputItems = groqResult.outputItems;
 
             const updated = Object.assign({}, session, {
               topic: turn.topic || session.topic,
@@ -561,15 +557,14 @@ Resources:
               fail(409, "Answer at least one mentor follow-up before completing this learning session.");
             }
 
-            const grokResult = await callGrok(
+            const groqResult = await callGroq(
               modelMessages(session, session.modelTurns || [], true),
               "unseen_session_scorecard",
               SCORECARD_SCHEMA,
               1300,
-              sessionId,
               "medium"
             );
-            const scorecard = validateScorecard(grokResult.value);
+            const scorecard = validateScorecard(groqResult.value);
             const completedAt = new Date().toISOString();
             const assessment = Object.assign({}, scorecard, {
               PK: session.PK,
