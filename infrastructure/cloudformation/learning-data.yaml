@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  UNSEEN learning data store. Creates a protected DynamoDB table for learner
+  profiles, active learning sessions and completed session assessments.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: unseen
+    AllowedPattern: '^[a-z][a-z0-9-]{1,20}$'
+    Description: Lowercase application prefix used in the table name.
+
+  EnvironmentName:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Isolated environment name.
+
+  EnablePointInTimeRecovery:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Enable DynamoDB point-in-time recovery. Recommended for production; it has an additional storage-based charge.
+
+Conditions:
+  PointInTimeRecoveryEnabled: !Equals
+    - !Ref EnablePointInTimeRecovery
+    - 'true'
+
+Resources:
+  LearningDataTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub '${ProjectName}-${EnvironmentName}-learning'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: !If
+          - PointInTimeRecoveryEnabled
+          - true
+          - false
+      Tags:
+        - Key: Application
+          Value: UNSEEN
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: DataClassification
+          Value: LearnerData
+
+Outputs:
+  LearningTableName:
+    Description: DynamoDB table used by the UNSEEN learning backend.
+    Value: !Ref LearningDataTable
+
+  LearningTableArn:
+    Description: ARN for granting the backend least-privilege access.
+    Value: !GetAtt LearningDataTable.Arn
+
+  EnvironmentName:
+    Description: Environment associated with this table.
+    Value: !Ref EnvironmentName
