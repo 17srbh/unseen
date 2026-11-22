@@ -368,10 +368,11 @@ Resources:
               return [turn.userInput].concat(turn.outputItems || []);
             });
             const result = [
-              // Keep this first message stable across turns so xAI can reuse its cached prefix.
-              { role: "system", content: MENTOR_PROMPT },
+              // Keep the fixed mentor prompt and prior turns as a stable prefix for xAI prompt caching.
+              { role: "system", content: MENTOR_PROMPT }
+            ].concat(history, [
               { role: "developer", content: "SESSION FACTS:\\n" + JSON.stringify(facts) }
-            ].concat(history);
+            ]);
             if (finishSession) {
               result.push({
                 role: "user",
