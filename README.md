@@ -17,7 +17,7 @@ UNSEEN is a learning-intelligence and career-growth platform designed to make co
 - `/auth/callback` — OAuth authorization-code callback.
 - `/app/dashboard` — Protected authenticated landing page; the learning UI is the next frontend milestone.
 
-The first backend slice is deployed in AWS: a DynamoDB learner table, an HTTP API, a Cognito JWT authorizer and a Lambda-backed `GET /v1/me` profile endpoint. The React dashboard calls the endpoint with the signed-in user's Cognito access token. Learning sessions, conversation persistence and Grok are the next backend milestones.
+The first backend slice is deployed in AWS: a DynamoDB learner table, an HTTP API, a Cognito JWT authorizer and a Lambda-backed `GET /v1/me` profile endpoint. The React dashboard calls the endpoint with the signed-in user's Cognito access token. The first release will use one Grok-generated overall score (0–100) per completed learning session; lifetime points, ranks and daily point limits are deferred.
 
 ### Module 3 — Career intelligence and talent marketplace
 
@@ -61,7 +61,7 @@ The dashboard uses Amplify `fetchAuthSession()` to obtain the Cognito access tok
 
 ## Learning data and scoring foundation
 
-See [docs/LEARNING-DATA-MODEL.md](docs/LEARNING-DATA-MODEL.md) for the DynamoDB single-table design, access patterns, initial score rubric, points policy and rank thresholds.
+See [docs/LEARNING-DATA-MODEL.md](docs/LEARNING-DATA-MODEL.md) for the DynamoDB single-table design, access patterns and session scorecard model.
 
 Validate the development table template:
 
@@ -135,8 +135,8 @@ unseen/
 - The deployed API Gateway HTTP API validates Cognito access-token signature, issuer, expiry, client ID and required scopes using its JWT authorizer.
 - Backend code must derive the user ID from validated token claims, not from a client-supplied user ID.
 - Grok API calls must run in Lambda. Never expose the xAI API key in a Vite `VITE_*` variable or browser bundle.
-- Grok may assess rubric dimensions and provide evidence, but backend code calculates scores, points and ranks.
-- Points awards must be idempotent and daily caps enforced atomically with DynamoDB transactions.
+- Grok generates one overall session score and supporting feedback; the backend validates the 0–100 value and owns persistence.
+- Lifetime points, ranks and daily point caps are deferred from the first release.
 - Do not store passwords or access tokens in the learning data table.
 
 ## AWS hosting status
