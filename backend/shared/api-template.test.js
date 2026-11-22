@@ -46,19 +46,19 @@ test("session routes are Cognito-protected and have corresponding handler paths"
   assert.match(lambdaSource, /authorizer[\s\S]*?claims[\s\S]*?sub/);
 });
 
-test("Grok 4.7 is called from Lambda through the Responses API with structured output", () => {
-  assert.match(lambdaSource, /https:\/\/api\.x\.ai\/v1\/responses/);
+test("Groq GPT-OSS 20B is called from Lambda through the Responses API with structured output", () => {
+  assert.match(lambdaSource, /https:\/\/api\.groq\.com\/openai\/v1\/responses/);
   assert.match(lambdaSource, /text:\s*\{[\s\S]*?format:\s*\{[\s\S]*?type:\s*"json_schema"/);
-  assert.match(template, /XAI_API_KEY_SECRET_ID: !Ref XaiApiKeySecretName/);
+  assert.match(template, /GROQ_API_KEY_SECRET_ID: !Ref GroqApiKeySecretName/);
   assert.match(template, /secretsmanager:GetSecretValue/);
-  assert.match(template, /XaiModel:[\s\S]*?Default: grok-4\.7/);
+  assert.match(template, /GroqModel:[\s\S]*?Default: openai\/gpt-oss-20b/);
 });
 
 test("session context is bounded and scorecard persistence is transactional", () => {
   assert.match(lambdaSource, /MAX_RECENT_MESSAGES = 12/);
   assert.match(lambdaSource, /MAX_MODEL_TURNS = 8/);
   assert.match(lambdaSource, /MAX_USER_TURNS = 16/);
-  assert.ok(lambdaSource.includes('include: ["reasoning.encrypted_content"]'));
+  assert.doesNotMatch(lambdaSource, /prompt_cache_key|store:\s*false|include:/);
   assert.ok(lambdaSource.includes('reasoningEffort = "low"'));
   assert.ok(lambdaSource.includes('"medium"'));
   assert.ok(lambdaSource.includes("outputItems: result.output || []"));
