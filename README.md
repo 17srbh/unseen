@@ -19,7 +19,7 @@ UNSEEN is a learning-intelligence and career-growth platform designed to make co
 - `/app/learn` — Start an AI-guided learning session.
 - `/app/learn/:sessionId` — Resume a session or view its completed scorecard.
 
-The development backend includes a DynamoDB learner table, a Cognito JWT-protected HTTP API and a Lambda session orchestrator. The session flow uses Grok 4.7 through the xAI Responses API, keeps a bounded recent conversation plus a rolling summary, and stores one final scorecard (0–100) per completed session. Lifetime points, ranks, daily point limits and separate turn records are deferred.
+The development backend includes a DynamoDB learner table, a Cognito JWT-protected HTTP API and a Lambda session orchestrator. The session flow uses `openai/gpt-oss-20b` through Groq's Responses API, keeps a bounded recent conversation plus a rolling summary, and stores one final scorecard (0–100) per completed session. Lifetime points, ranks, daily point limits and separate turn records are deferred.
 
 ### Module 3 — Career intelligence and talent marketplace
 
@@ -35,7 +35,7 @@ Planned future capabilities include professional career journeys, career benchma
 - Amazon DynamoDB (deployed learner data table)
 - Amazon API Gateway HTTP API (Cognito JWT-protected routes)
 - AWS Lambda (authenticated learner profile and AI session orchestration)
-- AWS Secrets Manager (server-side xAI API key)
+- AWS Secrets Manager (server-side Groq API key)
 - Cloudflare Pages for current static frontend hosting
 - AWS CloudFormation for infrastructure
 - GitHub for source control
@@ -107,35 +107,35 @@ The protected learner flow uses these API routes:
 
 Every route is protected by the Cognito JWT authorizer. Lambda derives the learner identity from the verified `sub` claim; a browser-supplied user ID is never trusted.
 
-Learner conversation content is sent over HTTPS to xAI for model inference. The model prompt does not include the learner's email, Cognito subject or access token. The interface warns learners not to submit passwords, API keys or confidential information. The xAI API key remains in AWS Secrets Manager and is used only by Lambda.
+Learner conversation content is sent over HTTPS to Groq for model inference. The model prompt does not include the learner's email, Cognito subject or access token. The interface warns learners not to submit passwords, API keys or confidential information. The Groq API key remains in AWS Secrets Manager and is used only by Lambda.
 
-The Responses API request sets `store: false`, so full response records are not saved for later `previous_response_id` retrieval. However, [xAI documents that Grok 4.7's encrypted reasoning trace may still be retained server-side for rehydration](https://docs.x.ai/developers/model-capabilities/text/reasoning). Do not use this flow for confidential or regulated information without reviewing xAI's current data-handling terms.
+Groq's Responses API is currently in beta and does not support `previous_response_id`, `store`, `truncation`, `include` or `prompt_cache_key`. It also does not maintain stateful conversations; UNSEEN therefore supplies its bounded saved conversation history on every request. See [Groq's Responses API documentation](https://console.groq.com/docs/responses-api) and review [Groq's data controls](https://console.groq.com/docs/your-data) before using confidential or regulated information.
 
-The session item stores the initial entry, status, topic, rolling context summary, knowledge gaps, counters and at most 12 recent display messages. It also holds Grok 4.7's opaque Responses API output items (including encrypted reasoning) for at most the last 8 turns and passes them back unchanged on the next call. Full response records are not stored for later `previous_response_id` retrieval; encrypted reasoning traces may still be retained by xAI for rehydration. There is no separate DynamoDB item for each mentor question or answer. Completion stores one `ASSESSMENT#<sessionId>` item and marks the session complete in a DynamoDB transaction. Repeating the completion request returns the existing scorecard.
+The session item stores the initial entry, status, topic, rolling context summary, knowledge gaps, counters and at most 12 recent display messages. It also holds the Responses API output items needed to continue the conversation for at most the last 8 turns and sends them back with the next request. Groq does not currently support provider-managed stateful conversations, so the application owns this bounded context. There is no separate DynamoDB item for each mentor question or answer. Completion stores one `ASSESSMENT#<sessionId>` item and marks the session complete in a DynamoDB transaction. Repeating the completion request returns the existing scorecard.
 
-### Configure the xAI API key
+### Configure the Groq API key
 
-1. Create an API key in the [xAI API Console](https://console.x.ai/). Do not put it in a Vite variable, React code, GitHub, or this repository.
-2. Store it in AWS Secrets Manager as `unseen/dev/xai-api-key`. The secret may be a plain API key string or JSON containing an `apiKey` field. The Lambda execution role is granted access only to the configured secret path.
+1. Create an API key in the [Groq Console](https://console.groq.com/keys). Do not put it in a Vite variable, React code, GitHub, or this repository.
+2. Store it in AWS Secrets Manager as `unseen/dev/groq-api-key`. The secret may be a plain API key string or JSON containing an `apiKey` field. The Lambda execution role is granted access only to the configured secret path.
 3. Deploy the updated `api-backend.yaml` template after the secret exists.
 
 On macOS, a hidden terminal prompt can be used to enter the key without echoing it:
 
 ```bash
-read -s XAI_API_KEY
+read -s GROQ_API_KEY
 echo
 aws secretsmanager create-secret \
-  --name unseen/dev/xai-api-key \
-  --description "UNSEEN development xAI API key" \
-  --secret-string "$XAI_API_KEY" \
+  --name unseen/dev/groq-api-key \
+  --description "UNSEEN development Groq API key" \
+  --secret-string "$GROQ_API_KEY" \
   --profile dev \
   --region ap-south-1
-unset XAI_API_KEY
+unset GROQ_API_KEY
 ```
 
 If the secret already exists, use `aws secretsmanager put-secret-value` instead of `create-secret`.
 
-The default model parameter is `grok-4.7`. Each mentor reply and each final scorecard requires a model request and may incur xAI usage charges. Do not deploy this integration until the key is stored and you have reviewed your xAI usage limits.
+The default model parameter is `openai/gpt-oss-20b`. Each mentor reply and each final scorecard requires a model request and may incur Groq usage charges. Review your Groq usage limits before using the integration beyond initial tests.
 
 ### Session API deployment
 
@@ -162,13 +162,13 @@ aws cloudformation deploy \
     LearningTableName=unseen-dev-learning \
     CognitoUserPoolId=ap-south-1_tI7jDRdV4 \
     CognitoAppClientId=116brlu7snrt6tdo9e290l9srb \
-    XaiApiKeySecretName=unseen/dev/xai-api-key \
-    XaiModel=grok-4.7 \
+    GroqApiKeySecretName=unseen/dev/groq-api-key \
+    GroqModel=openai/gpt-oss-20b \
   --profile dev \
   --region ap-south-1
 ```
 
-This updates the existing API/Lambda stack; it does not create a second API or replace the DynamoDB table. The frontend needs no xAI key and uses the existing `VITE_UNSEEN_API_URL`.
+This updates the existing API/Lambda stack; it does not create a second API or replace the DynamoDB table. The frontend needs no Groq key and uses the existing `VITE_UNSEEN_API_URL`.
 
 ## Production build
 
@@ -209,12 +209,12 @@ unseen/
 
 ## Security boundaries
 
-- Never commit `.env.local`, AWS credentials, xAI API keys, app-client secrets or private keys.
+- Never commit `.env.local`, AWS credentials, Groq API keys, app-client secrets or private keys.
 - The browser Cognito app client is public and has no client secret.
 - The deployed API Gateway HTTP API validates Cognito access-token signature, issuer, expiry, client ID and required scopes using its JWT authorizer.
 - Backend code must derive the user ID from validated token claims, not from a client-supplied user ID.
-- Grok API calls must run in Lambda. Never expose the xAI API key in a Vite `VITE_*` variable or browser bundle.
-- Grok generates one overall session score and supporting feedback; the backend validates the 0–100 value and owns persistence.
+- Groq API calls must run in Lambda. Never expose the Groq API key in a Vite `VITE_*` variable or browser bundle.
+- The configured model generates one overall session score and supporting feedback; the backend validates the 0–100 value and owns persistence.
 - Lifetime points, ranks and daily point caps are deferred from the first release.
 - Do not store passwords or access tokens in the learning data table.
 
@@ -226,4 +226,4 @@ Cloudflare Pages is the current hosting path for the public frontend.
 
 ## Continuation brief
 
-> Continue the UNSEEN project from the existing GitHub repository. Module 1 public pages are Home, About and How It Works. Module 2 Cognito authentication works on branch `feature/module2-cognito-auth`: React login/signup entry pages, Cognito Hosted UI OAuth Authorization Code + PKCE via AWS Amplify, callback handling and protected dashboard. The development DynamoDB table and API stack are deployed. The API exposes public `GET /health` and Cognito JWT-protected `GET /v1/me`; the latter initializes or retrieves the signed-in learner's profile. The React dashboard now calls that endpoint using Amplify's Cognito access token and displays the authenticated learner profile. Current task: set `VITE_UNSEEN_API_URL` in local `.env.local` and Cloudflare Pages environments, pull latest branch, run tests/build, then verify the authenticated profile end to end. Next build a session orchestration endpoint that manages Grok context, stores a bounded active-session summary and saves one completed session scorecard (0–100) with feedback; lifetime points and ranks are deferred. Preserve the dark navy/mint design, keep UI minimal, include meaningful comments, update docs and test the Vite build. Inspect current files before changing them.
+> Continue the UNSEEN project from the existing GitHub repository. Module 1 public pages are Home, About and How It Works. Module 2 Cognito authentication works on branch `feature/module2-cognito-auth`: React login/signup entry pages, Cognito Hosted UI OAuth Authorization Code + PKCE via AWS Amplify, callback handling and protected dashboard. The development DynamoDB table and API stack are deployed. The API exposes public `GET /health` and Cognito JWT-protected `GET /v1/me`; the latter initializes or retrieves the signed-in learner's profile. The React dashboard now calls that endpoint using Amplify's Cognito access token and displays the authenticated learner profile. Current task: set `VITE_UNSEEN_API_URL` in local `.env.local` and Cloudflare Pages environments, pull latest branch, run tests/build, then verify the authenticated profile end to end. Next build a session orchestration endpoint that manages Groq context, stores a bounded active-session summary and saves one completed session scorecard (0–100) with feedback; lifetime points and ranks are deferred. Preserve the dark navy/mint design, keep UI minimal, include meaningful comments, update docs and test the Vite build. Inspect current files before changing them.
