@@ -503,8 +503,7 @@ Resources:
               modelMessages(session, modelTurns, false),
               "unseen_mentor_turn",
               TURN_SCHEMA,
-              900,
-              sessionId
+              900
             );
             const turn = validateTurn(groqResult.value);
             modelTurns[modelTurns.length - 1].outputItems = groqResult.outputItems;
