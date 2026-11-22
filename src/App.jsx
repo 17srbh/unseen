@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "./auth/AuthContext.jsx";
 import AuthPage from "./pages/AuthPage.jsx";
 import AuthCallbackPage from "./pages/AuthCallbackPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
+import SessionPage from "./pages/SessionPage.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 // Shared navigation exposes account actions while preserving the public website links.
@@ -302,6 +303,14 @@ function RoutedApp() {
         <Route
           path="/app/dashboard"
           element={<ProtectedRoute><DashboardPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/app/learn"
+          element={<ProtectedRoute><SessionPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/app/learn/:sessionId"
+          element={<ProtectedRoute><SessionPage /></ProtectedRoute>}
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
