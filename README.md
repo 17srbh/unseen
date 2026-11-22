@@ -10,14 +10,16 @@ UNSEEN is a learning-intelligence and career-growth platform designed to make co
 - `/about` — About: why UNSEEN exists and the principles behind it.
 - `/how-it-works` — How it works: the proposed capture, reflect and recognise learning loop.
 
-### Module 2 — Learner application (in progress)
+### Module 2 — Learner application (AI learning sessions in progress)
 
 - `/login` — Branded UNSEEN sign-in entry page.
 - `/signup` — Branded sign-up entry page; users continue to Cognito Classic Hosted UI and choose its Sign up link.
 - `/auth/callback` — OAuth authorization-code callback.
-- `/app/dashboard` — Protected authenticated landing page; the learning UI is the next frontend milestone.
+- `/app/dashboard` — Protected learner dashboard and profile.
+- `/app/learn` — Start an AI-guided learning session.
+- `/app/learn/:sessionId` — Resume a session or view its completed scorecard.
 
-The first backend slice is deployed in AWS: a DynamoDB learner table, an HTTP API, a Cognito JWT authorizer and a Lambda-backed `GET /v1/me` profile endpoint. The React dashboard calls the endpoint with the signed-in user's Cognito access token. The first release will use one Grok-generated overall score (0–100) per completed learning session; lifetime points, ranks and daily point limits are deferred.
+The development backend includes a DynamoDB learner table, a Cognito JWT-protected HTTP API and a Lambda session orchestrator. The session flow uses Grok 4.7 through the xAI Responses API, keeps a bounded recent conversation plus a rolling summary, and stores one final scorecard (0–100) per completed session. Lifetime points, ranks, daily point limits and separate turn records are deferred.
 
 ### Module 3 — Career intelligence and talent marketplace
 
@@ -32,7 +34,8 @@ Planned future capabilities include professional career journeys, career benchma
 - Amazon Cognito User Pool (OAuth 2.0 authorization code grant + PKCE)
 - Amazon DynamoDB (deployed learner data table)
 - Amazon API Gateway HTTP API (Cognito JWT-protected routes)
-- AWS Lambda (learner profile handler)
+- AWS Lambda (authenticated learner profile and AI session orchestration)
+- AWS Secrets Manager (server-side xAI API key)
 - Cloudflare Pages for current static frontend hosting
 - AWS CloudFormation for infrastructure
 - GitHub for source control
@@ -90,6 +93,78 @@ Run the deterministic scoring tests:
 ```bash
 npm test
 ```
+
+## AI learning sessions
+
+The protected learner flow uses these API routes:
+
+| Method | Route | Purpose |
+|---|---|---|
+| POST | `/v1/sessions` | Start a session from the learner's initial entry |
+| GET | `/v1/sessions/{sessionId}` | Restore the learner's own session |
+| POST | `/v1/sessions/{sessionId}/message` | Continue the conversation with one learner message |
+| POST | `/v1/sessions/{sessionId}/complete` | Generate and persist the final scorecard |
+
+Every route is protected by the Cognito JWT authorizer. Lambda derives the learner identity from the verified `sub` claim; a browser-supplied user ID is never trusted.
+
+The session item stores the initial entry, status, topic, a rolling context summary, knowledge gaps, counters and at most 12 recent messages. There is no separate DynamoDB item for each mentor question or answer. Completion stores one `ASSESSMENT#<sessionId>` item and marks the session complete in a DynamoDB transaction. Repeating the completion request returns the existing scorecard.
+
+### Configure the xAI API key
+
+1. Create an API key in the [xAI API Console](https://console.x.ai/). Do not put it in a Vite variable, React code, GitHub, or this repository.
+2. Store it in AWS Secrets Manager as `unseen/dev/xai-api-key`. The secret may be a plain API key string or JSON containing an `apiKey` field. The Lambda execution role is granted access only to the configured secret path.
+3. Deploy the updated `api-backend.yaml` template after the secret exists.
+
+On macOS, a hidden terminal prompt can be used to enter the key without echoing it:
+
+```bash
+read -s XAI_API_KEY
+echo
+aws secretsmanager create-secret \
+  --name unseen/dev/xai-api-key \
+  --description "UNSEEN development xAI API key" \
+  --secret-string "$XAI_API_KEY" \
+  --profile dev \
+  --region ap-south-1
+unset XAI_API_KEY
+```
+
+If the secret already exists, use `aws secretsmanager put-secret-value` instead of `create-secret`.
+
+The default model parameter is `grok-4.7`. Each mentor reply and each final scorecard requires a model request and may incur xAI usage charges. Do not deploy this integration until the key is stored and you have reviewed your xAI usage limits.
+
+### Session API deployment
+
+Validate the template before deployment:
+
+```bash
+aws cloudformation validate-template \
+  --template-body file://infrastructure/cloudformation/api-backend.yaml \
+  --profile dev \
+  --region ap-south-1
+```
+
+Deploy using the existing development stack and execution role after reviewing the change:
+
+```bash
+aws cloudformation deploy \
+  --template-file infrastructure/cloudformation/api-backend.yaml \
+  --stack-name unseen-api-backend-dev \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --role-arn arn:aws:iam::470044069008:role/CloudFormationExecutionRole \
+  --parameter-overrides \
+    ProjectName=unseen \
+    EnvironmentName=dev \
+    LearningTableName=unseen-dev-learning \
+    CognitoUserPoolId=ap-south-1_tI7jDRdV4 \
+    CognitoAppClientId=116brlu7snrt6tdo9e290l9srb \
+    XaiApiKeySecretName=unseen/dev/xai-api-key \
+    XaiModel=grok-4.7 \
+  --profile dev \
+  --region ap-south-1
+```
+
+This updates the existing API/Lambda stack; it does not create a second API or replace the DynamoDB table. The frontend needs no xAI key and uses the existing `VITE_UNSEEN_API_URL`.
 
 ## Production build
 
